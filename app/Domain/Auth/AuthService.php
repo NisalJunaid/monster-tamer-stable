@@ -8,38 +8,51 @@ use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
+    /**
+     * Register a new user and issue an API token.
+     */
     public function register(array $data): array
     {
-        $user = User::query()->create([
+        $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
 
-        return [
-            'user' => $user,
-            'token' => $user->createToken('auth_token')->plainTextToken,
-        ];
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return [$user, $token];
     }
 
-    public function login(array $credentials): array
+    /**
+     * Attempt login and return a token for the authenticated user.
+     *
+     * @throws ValidationException
+     */
+    public function login(array $data): array
     {
-        $user = User::query()->where('email', $credentials['email'])->first();
+        $user = User::where('email', $data['email'])->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        if (! $user || ! Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages([
-                'email' => 'The provided credentials are incorrect.',
+                'email' => __('The provided credentials are incorrect.'),
             ]);
         }
 
-        return [
-            'user' => $user,
-            'token' => $user->createToken('auth_token')->plainTextToken,
-        ];
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return [$user, $token];
     }
 
+    /**
+     * Revoke the active access token for the provided user.
+     */
     public function logout(User $user): void
     {
-        $user->currentAccessToken()?->delete();
+        $token = $user->currentAccessToken();
+
+        if ($token) {
+            $token->delete();
+        }
     }
 }
