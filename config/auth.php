@@ -18,6 +18,8 @@ return [
         'passwords' => 'users',
     ],
 
+    // The API guard uses Sanctum tokens while the default web guard continues to use sessions.
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Guards
@@ -31,7 +33,7 @@ return [
     | users are actually retrieved out of your database or other storage
     | mechanisms used by this application to persist your user's data.
     |
-    | Supported: "session"
+    | Supported: "session", "sanctum"
     |
     */
 

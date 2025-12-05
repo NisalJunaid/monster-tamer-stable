@@ -17,3 +17,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });
+
+Route::get('/monsters', [MonsterController::class, 'index']);
+Route::post('/monsters', [MonsterController::class, 'store']);
+
+Route::post('/battles', [BattleController::class, 'store']);
