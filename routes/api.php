@@ -11,14 +11,10 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/monsters', [MonsterController::class, 'index']);
 Route::post('/monsters', [MonsterController::class, 'store']);
 
-Route::post('/battles', [BattleController::class, 'store']);
-
-Route::middleware('auth:api')->group(function () {
+Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/battles/challenge', [BattleController::class, 'challenge']);
+    Route::post('/battles/{battle}/act', [BattleController::class, 'act']);
+    Route::get('/battles/{battle}', [BattleController::class, 'show']);
 });
-
-Route::get('/monsters', [MonsterController::class, 'index']);
-Route::post('/monsters', [MonsterController::class, 'store']);
-
-Route::post('/battles', [BattleController::class, 'store']);
