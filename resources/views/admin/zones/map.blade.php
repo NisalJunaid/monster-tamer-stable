@@ -1,73 +1,74 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Admin Zone Map</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-        header { padding: 1rem; background: #111827; color: #fff; }
-        main { display: flex; gap: 1rem; padding: 1rem; }
-        #map { width: 70%; height: 80vh; border: 1px solid #e5e7eb; border-radius: 8px; }
-        .panel { width: 30%; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.08); overflow-y: auto; height: 80vh; }
-        .field { margin-bottom: 0.75rem; }
-        label { display: block; font-weight: 600; margin-bottom: 0.35rem; }
-        input[type="text"], input[type="number"] { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; }
-        .zones-list { margin-top: 1rem; }
-        .zones-list button { width: 100%; text-align: left; padding: 0.5rem; margin-bottom: 0.4rem; border: 1px solid #d1d5db; border-radius: 4px; background: #f3f4f6; cursor: pointer; }
-        .zones-list button:hover { background: #e5e7eb; }
-        .actions { display: flex; gap: 0.5rem; align-items: center; }
-        .status { margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: #ecfdf3; color: #047857; border: 1px solid #bbf7d0; border-radius: 6px; }
-        .form-actions { display: flex; gap: 0.5rem; }
-    </style>
-</head>
-<body>
-<header>
-    <h1>Zone Management</h1>
-</header>
-<main>
-    <div id="map"></div>
-    <div class="panel">
-        @if(session('status'))
-            <div class="status">{{ session('status') }}</div>
-        @endif
-        <form id="zone-form" method="POST" action="{{ route('admin.zones.store') }}">
-            @csrf
-            <input type="hidden" id="zone-form-method" name="_method" value="POST">
-            <input type="hidden" name="shape_type" id="shape_type" value="polygon">
-            <input type="hidden" name="shape_json" id="shape_json">
+@extends('layouts.app')
 
-            <div class="field">
-                <label for="name">Zone Name</label>
-                <input type="text" id="name" name="name" required>
+@section('content')
+<style>
+    #map { width: 100%; height: 70vh; border: 1px solid #e5e7eb; border-radius: 8px; }
+    .panel { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.08); overflow-y: auto; height: 70vh; }
+    .field { margin-bottom: 0.75rem; }
+    label { display: block; font-weight: 600; margin-bottom: 0.35rem; }
+    input[type="text"], input[type="number"] { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; }
+    .zones-list { margin-top: 1rem; }
+    .zones-list button { width: 100%; text-align: left; padding: 0.5rem; margin-bottom: 0.4rem; border: 1px solid #d1d5db; border-radius: 4px; background: #f3f4f6; cursor: pointer; }
+    .zones-list button:hover { background: #e5e7eb; }
+    .actions { display: flex; gap: 0.5rem; align-items: center; }
+    .status { margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: #ecfdf3; color: #047857; border: 1px solid #bbf7d0; border-radius: 6px; }
+    .form-actions { display: flex; gap: 0.5rem; }
+</style>
+<div class="space-y-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold">Zone Management</h1>
+            <p class="text-gray-600">Draw encounter areas and manage spawn tables.</p>
+        </div>
+        <a href="{{ route('admin.index') }}" class="text-teal-600 underline">Back to Admin</a>
+    </div>
+    <div class="grid md:grid-cols-3 gap-4">
+        <div class="md:col-span-2">
+            <div id="map"></div>
+        </div>
+        <div class="panel">
+            @if(session('status'))
+                <div class="status">{{ session('status') }}</div>
+            @endif
+            <form id="zone-form" method="POST" action="{{ route('admin.zones.store') }}">
+                @csrf
+                <input type="hidden" id="zone-form-method" name="_method" value="POST">
+                <input type="hidden" name="shape_type" id="shape_type" value="polygon">
+                <input type="hidden" name="shape_json" id="shape_json">
+
+                <div class="field">
+                    <label for="name">Zone Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+
+                <div class="field">
+                    <label for="priority">Priority</label>
+                    <input type="number" id="priority" name="priority" value="0">
+                </div>
+
+                <div class="field actions">
+                    <input type="checkbox" id="is_active" name="is_active" value="1" checked>
+                    <label for="is_active">Active</label>
+                </div>
+
+                <div class="field">
+                    <label>Shape</label>
+                    <p>Draw a polygon or circle on the map, or click an existing zone to edit.</p>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="px-3 py-2 bg-blue-600 text-white rounded">Save Zone</button>
+                    <button type="button" id="new-zone" class="px-3 py-2 bg-gray-200 rounded">New Zone</button>
+                </div>
+            </form>
+
+            <div class="zones-list">
+                <h3 class="font-semibold mb-2">Existing Zones</h3>
+                <div id="zones-buttons"></div>
             </div>
-
-            <div class="field">
-                <label for="priority">Priority</label>
-                <input type="number" id="priority" name="priority" value="0">
-            </div>
-
-            <div class="field actions">
-                <input type="checkbox" id="is_active" name="is_active" value="1" checked>
-                <label for="is_active">Active</label>
-            </div>
-
-            <div class="field">
-                <label>Shape</label>
-                <p>Draw a polygon or circle on the map, or click an existing zone to edit.</p>
-            </div>
-
-            <div class="form-actions">
-                <button type="submit">Save Zone</button>
-                <button type="button" id="new-zone">New Zone</button>
-            </div>
-        </form>
-
-        <div class="zones-list">
-            <h3>Existing Zones</h3>
-            <div id="zones-buttons"></div>
         </div>
     </div>
-</main>
+</div>
 <script>
     const zones = @json($zones);
     const storeUrl = @json(route('admin.zones.store'));
@@ -275,5 +276,4 @@
     window.initMap = initMap;
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key={{ $googleMapsApiKey }}&libraries=drawing&callback=initMap" async defer></script>
-</body>
-</html>
+@endsection
