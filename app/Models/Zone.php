@@ -22,11 +22,14 @@ class Zone extends Model
         'min_lng',
         'max_lng',
         'rules_json',
+        'spawn_strategy',
+        'spawn_rules',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'rules_json' => 'array',
+        'spawn_rules' => 'array',
     ];
 
     public function spawnEntries()

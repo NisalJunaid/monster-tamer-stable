@@ -41,6 +41,8 @@ class ZoneFactory extends Factory
             'max_lat' => max($lats),
             'min_lng' => min($lngs),
             'max_lng' => max($lngs),
+            'spawn_strategy' => 'manual',
+            'spawn_rules' => null,
         ];
     }
 }

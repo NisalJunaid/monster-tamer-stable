@@ -1,36 +1,117 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="space-y-4">
+<div class="space-y-6">
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-bold">Spawn Entries for {{ $zone->name }}</h1>
-            <p class="text-gray-600">Manage which species appear in this zone.</p>
+            <p class="text-gray-600">Manage which species appear in this zone and quickly generate spawn tables.</p>
         </div>
         <a href="{{ route('admin.zones.map') }}" class="text-teal-600 underline">&larr; Back to Zones</a>
     </div>
 
-    @if(session('status'))
-        <div class="p-3 bg-green-100 border border-green-200 rounded text-green-800">{{ session('status') }}</div>
-    @endif
+    <div class="grid lg:grid-cols-2 gap-4">
+        <div class="bg-white shadow rounded p-4 space-y-3">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold">Zone details</h2>
+                <span class="px-2 py-1 rounded text-xs {{ $zone->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600' }}">
+                    {{ $zone->is_active ? 'Active' : 'Inactive' }}
+                </span>
+            </div>
+            <div class="text-sm text-gray-700 space-y-1">
+                <p><strong>Priority:</strong> {{ $zone->priority }}</p>
+                <p><strong>Spawn strategy:</strong> {{ ucfirst($zone->spawn_strategy ?? 'manual') }}</p>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded p-4">
+            <h2 class="text-xl font-semibold mb-3">Add spawn entry</h2>
+            <form method="POST" action="{{ route('admin.zones.spawns.store', $zone) }}" class="space-y-3">
+                @csrf
+                <div class="grid md:grid-cols-2 gap-3">
+                    <label class="text-sm font-medium text-gray-700">Species
+                        <select name="species_id" class="w-full border rounded px-2 py-1" required>
+                            <option value="">Select a species...</option>
+                            @foreach($species as $s)
+                                <option value="{{ $s->id }}">#{{ $s->id }} - {{ $s->name }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label class="text-sm font-medium text-gray-700">Weight
+                        <input type="number" name="weight" value="50" min="1" class="w-full border rounded px-2 py-1" required>
+                    </label>
+                    <label class="text-sm font-medium text-gray-700">Min level
+                        <input type="number" name="min_level" value="1" min="1" class="w-full border rounded px-2 py-1" required>
+                    </label>
+                    <label class="text-sm font-medium text-gray-700">Max level
+                        <input type="number" name="max_level" value="5" min="1" class="w-full border rounded px-2 py-1" required>
+                    </label>
+                    <label class="text-sm font-medium text-gray-700 col-span-full">Rarity tier (optional)
+                        <input type="text" name="rarity_tier" class="w-full border rounded px-2 py-1" placeholder="common">
+                    </label>
+                </div>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Add entry</button>
+            </form>
+        </div>
+    </div>
 
     <div class="bg-white shadow rounded p-4">
-        <h2 class="text-xl font-semibold mb-3">Create Entry</h2>
-        <form method="POST" action="{{ route('admin.zones.spawns.store', $zone) }}" class="space-y-2">
+        <h2 class="text-xl font-semibold mb-3">Random spawn generator</h2>
+        <form method="POST" action="{{ route('admin.zones.spawns.generate', $zone) }}" class="space-y-3">
             @csrf
-            <div class="grid md:grid-cols-5 gap-3">
-                <label class="text-sm">Species ID <input type="number" name="species_id" required class="w-full border rounded px-2 py-1"></label>
-                <label class="text-sm">Weight <input type="number" name="weight" value="1" required class="w-full border rounded px-2 py-1"></label>
-                <label class="text-sm">Min Lv <input type="number" name="min_level" value="1" required class="w-full border rounded px-2 py-1"></label>
-                <label class="text-sm">Max Lv <input type="number" name="max_level" value="5" required class="w-full border rounded px-2 py-1"></label>
-                <label class="text-sm">Rarity <input type="text" name="rarity_tier" placeholder="common" class="w-full border rounded px-2 py-1"></label>
+            <div class="grid md:grid-cols-3 gap-3">
+                <label class="text-sm font-medium text-gray-700">Pool mode
+                    <select name="pool_mode" class="w-full border rounded px-2 py-1">
+                        <option value="any">Any species</option>
+                        <option value="type_based">Type-based</option>
+                        <option value="rarity_based">Rarity-based</option>
+                    </select>
+                </label>
+                <label class="text-sm font-medium text-gray-700">Number of species
+                    <input type="number" name="num_species" value="8" min="1" max="50" class="w-full border rounded px-2 py-1" required>
+                </label>
+                <label class="text-sm font-medium text-gray-700">Replace existing entries
+                    <input type="checkbox" name="replace_existing" value="1" checked class="ml-2 align-middle">
+                </label>
             </div>
-            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Add Entry</button>
+
+            <div class="grid md:grid-cols-2 gap-3">
+                <label class="text-sm font-medium text-gray-700">Types (for type-based mode)
+                    <select name="types[]" multiple class="w-full border rounded px-2 py-1 h-32">
+                        @foreach($types as $type)
+                            <option value="{{ $type->id }}">{{ $type->name }}</option>
+                        @endforeach
+                    </select>
+                    <span class="text-xs text-gray-500">Use Ctrl/Cmd+Click to select multiple types.</span>
+                </label>
+                <label class="text-sm font-medium text-gray-700">Rarity tiers (for rarity-based mode)
+                    <input type="text" name="rarity_tiers[]" class="w-full border rounded px-2 py-1" placeholder="common, rare">
+                    <span class="text-xs text-gray-500">Separate multiple tiers with commas.</span>
+                </label>
+            </div>
+
+            <div class="grid md:grid-cols-4 gap-3">
+                <label class="text-sm font-medium text-gray-700">Level min
+                    <input type="number" name="level_min" value="1" min="1" class="w-full border rounded px-2 py-1" required>
+                </label>
+                <label class="text-sm font-medium text-gray-700">Level max
+                    <input type="number" name="level_max" value="8" min="1" class="w-full border rounded px-2 py-1" required>
+                </label>
+                <label class="text-sm font-medium text-gray-700">Weight min
+                    <input type="number" name="weight_min" value="10" min="1" class="w-full border rounded px-2 py-1" required>
+                </label>
+                <label class="text-sm font-medium text-gray-700">Weight max
+                    <input type="number" name="weight_max" value="100" min="1" class="w-full border rounded px-2 py-1" required>
+                </label>
+            </div>
+
+            <p class="text-xs text-gray-500">Weights will be normalized to a total of 1000 to keep encounter odds consistent.</p>
+            <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded">Generate spawns</button>
         </form>
     </div>
 
     <div class="bg-white shadow rounded p-4">
-        <h2 class="text-xl font-semibold mb-3">Existing Entries</h2>
+        <h2 class="text-xl font-semibold mb-3">Existing entries</h2>
         <div class="overflow-x-auto">
             <table class="w-full border border-gray-200 text-sm">
                 <thead class="bg-gray-50">
@@ -38,14 +119,14 @@
                         <th class="border p-2">ID</th>
                         <th class="border p-2">Species</th>
                         <th class="border p-2">Weight</th>
-                        <th class="border p-2">Level Range</th>
+                        <th class="border p-2">Level range</th>
                         <th class="border p-2">Rarity</th>
                         <th class="border p-2">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($zone->spawnEntries as $entry)
-                        <tr>
+                        <tr class="border-t">
                             <td class="border p-2">{{ $entry->id }}</td>
                             <td class="border p-2">{{ $entry->species->name ?? ('#'.$entry->species_id) }}</td>
                             <td class="border p-2">{{ $entry->weight }}</td>
@@ -55,12 +136,18 @@
                                 <div class="space-y-2">
                                     <form method="POST" action="{{ route('admin.zones.spawns.update', [$zone, $entry]) }}" class="space-y-2">
                                         @csrf
-                                    @method('PUT')
-                                        <div class="grid md:grid-cols-5 gap-2 mb-2">
-                                            <input type="number" name="species_id" value="{{ $entry->species_id }}" required class="border rounded px-2 py-1">
-                                            <input type="number" name="weight" value="{{ $entry->weight }}" required class="border rounded px-2 py-1">
-                                            <input type="number" name="min_level" value="{{ $entry->min_level }}" required class="border rounded px-2 py-1">
-                                            <input type="number" name="max_level" value="{{ $entry->max_level }}" required class="border rounded px-2 py-1">
+                                        @method('PUT')
+                                        <div class="grid md:grid-cols-5 gap-2">
+                                            <select name="species_id" class="border rounded px-2 py-1">
+                                                @foreach($species as $s)
+                                                    <option value="{{ $s->id }}" @selected($s->id === $entry->species_id)>
+                                                        #{{ $s->id }} - {{ $s->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <input type="number" name="weight" value="{{ $entry->weight }}" min="1" class="border rounded px-2 py-1">
+                                            <input type="number" name="min_level" value="{{ $entry->min_level }}" min="1" class="border rounded px-2 py-1">
+                                            <input type="number" name="max_level" value="{{ $entry->max_level }}" min="1" class="border rounded px-2 py-1">
                                             <input type="text" name="rarity_tier" value="{{ $entry->rarity_tier }}" class="border rounded px-2 py-1">
                                         </div>
                                         <button type="submit" class="px-3 py-1 bg-teal-600 text-white rounded">Update</button>
