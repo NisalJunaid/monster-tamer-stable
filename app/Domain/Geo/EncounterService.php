@@ -4,9 +4,11 @@ namespace App\Domain\Geo;
 
 use App\Models\EncounterTicket;
 use App\Models\MonsterSpecies;
+use App\Models\SecurityEvent;
 use App\Models\User;
 use App\Models\Zone;
 use App\Models\ZoneSpawnEntry;
+use App\Support\RedisRateLimiter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon\Carbon;
 use Illuminate\Support\Facades\Redis;
@@ -15,8 +17,10 @@ class EncounterService
 {
     private const TICKET_DURATION_SECONDS = 90;
     private const COOLDOWN_SECONDS = 30;
+    private const ENCOUNTER_LIMIT = 3;
+    private const ENCOUNTER_WINDOW_SECONDS = 60;
 
-    public function __construct(private GeoZoneService $geoZoneService)
+    public function __construct(private GeoZoneService $geoZoneService, private RedisRateLimiter $rateLimiter)
     {
     }
 
@@ -41,6 +45,13 @@ class EncounterService
         if ($existing = $this->currentTicket($user)) {
             return $existing;
         }
+
+        $this->rateLimiter->ensureWithinLimit(
+            $this->encounterIssueKey($user->id),
+            self::ENCOUNTER_LIMIT,
+            self::ENCOUNTER_WINDOW_SECONDS,
+            'Encounter issuance rate limit exceeded.',
+        );
 
         $zone = $this->selectZone($lat, $lng);
 
@@ -72,6 +83,10 @@ class EncounterService
             'expires_at' => Carbon::now()->addSeconds(self::TICKET_DURATION_SECONDS),
         ]);
 
+        $ticket->update([
+            'integrity_hash' => $this->generateIntegrityHash($ticket),
+        ]);
+
         $this->storeCooldown($user, $zone);
 
         return $ticket->load(['species', 'zone']);
@@ -82,6 +97,8 @@ class EncounterService
         if ($ticket->user_id !== $user->id) {
             abort(403, 'Encounter does not belong to user.');
         }
+
+        $this->assertIntegrity($ticket);
 
         if ($ticket->status !== EncounterTicket::STATUS_ACTIVE) {
             return ['success' => false, 'message' => 'Encounter already resolved.'];
@@ -109,6 +126,11 @@ class EncounterService
     private function selectZone(float $lat, float $lng): ?Zone
     {
         return $this->geoZoneService->findZonesForPoint($lat, $lng)->first();
+    }
+
+    private function encounterIssueKey(int $userId): string
+    {
+        return "encounters:issue:{$userId}";
     }
 
     private function selectSpawnEntry(Collection $entries, int $seed): ZoneSpawnEntry
@@ -142,6 +164,45 @@ class EncounterService
         $normalized = $value / 0xFFFFFFFF;
 
         return $min + (int) floor($normalized * (($max - $min) + 1));
+    }
+
+    private function generateIntegrityHash(EncounterTicket $ticket): string
+    {
+        $expiresAt = $ticket->expires_at instanceof Carbon
+            ? $ticket->expires_at->getTimestamp()
+            : Carbon::parse($ticket->expires_at)->getTimestamp();
+
+        $payload = implode('|', [
+            $ticket->user_id,
+            $ticket->zone_id,
+            $ticket->species_id,
+            $ticket->rolled_level,
+            $ticket->seed,
+            $expiresAt,
+        ]);
+
+        return hash_hmac('sha256', $payload, config('app.key'));
+    }
+
+    private function assertIntegrity(EncounterTicket $ticket): void
+    {
+        $expected = $this->generateIntegrityHash($ticket);
+
+        if ($ticket->integrity_hash === $expected) {
+            return;
+        }
+
+        SecurityEvent::create([
+            'user_id' => $ticket->user_id,
+            'type' => 'encounter_integrity',
+            'context' => [
+                'ticket_id' => $ticket->id,
+                'expected' => $expected,
+                'provided' => $ticket->integrity_hash,
+            ],
+        ]);
+
+        abort(400, 'Encounter integrity check failed.');
     }
 
     private function onCooldown(User $user, Zone $zone): bool
