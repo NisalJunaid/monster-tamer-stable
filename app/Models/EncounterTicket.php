@@ -22,12 +22,17 @@ class EncounterTicket extends Model
         'seed',
         'status',
         'expires_at',
+        'integrity_hash',
     ];
 
     protected $casts = [
         'seed' => 'int',
         'rolled_level' => 'int',
         'expires_at' => 'datetime',
+    ];
+
+    protected $hidden = [
+        'integrity_hash',
     ];
 
     public function user()

@@ -5,17 +5,33 @@ namespace App\Http\Controllers;
 use App\Domain\Geo\EncounterService;
 use App\Domain\Geo\LocationValidator;
 use App\Models\PlayerLocation;
+use App\Support\RedisRateLimiter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon\Carbon;
 
 class LocationController extends Controller
 {
-    public function __construct(private LocationValidator $validator, private EncounterService $encounterService)
-    {
+    private const LOCATION_LIMIT = 5;
+    private const LOCATION_WINDOW_SECONDS = 10;
+
+    public function __construct(
+        private LocationValidator $validator,
+        private EncounterService $encounterService,
+        private RedisRateLimiter $rateLimiter
+    ) {
     }
 
     public function update(Request $request)
     {
+        $user = $request->user();
+
+        $this->rateLimiter->ensureWithinLimit(
+            "location:update:{$user->id}",
+            self::LOCATION_LIMIT,
+            self::LOCATION_WINDOW_SECONDS,
+            'Too many location updates; please slow down.',
+        );
+
         $data = $request->validate([
             'lat' => ['required', 'numeric', 'between:-90,90'],
             'lng' => ['required', 'numeric', 'between:-180,180'],
@@ -24,7 +40,6 @@ class LocationController extends Controller
             'recorded_at' => ['nullable', 'date'],
         ]);
 
-        $user = $request->user();
         $recordedAt = Carbon::parse($data['recorded_at'] ?? Carbon::now());
         $previousLocation = PlayerLocation::where('user_id', $user->id)->first();
 

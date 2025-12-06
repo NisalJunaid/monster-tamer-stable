@@ -3,6 +3,7 @@
 namespace App\Domain\Geo;
 
 use App\Models\PlayerLocation;
+use App\Models\SecurityEvent;
 use Illuminate\Support\Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -31,11 +32,11 @@ class LocationValidator
         $allowedDistance = ($timeDelta * self::MAX_SPEED_MPS) + $accuracyPadding;
 
         if ($speedMetersPerSecond !== null && $speedMetersPerSecond > self::MAX_SPEED_MPS * 1.5) {
-            $this->flagTeleport($previousLocation, $lat, $lng, $distance, $speedMetersPerSecond, $timeDelta);
+            $this->flagTeleport($previousLocation, $lat, $lng, $distance, $speedMetersPerSecond, $timeDelta, 'speed');
         }
 
         if ($distance > $allowedDistance) {
-            $this->flagTeleport($previousLocation, $lat, $lng, $distance, $speedMetersPerSecond, $timeDelta);
+            $this->flagTeleport($previousLocation, $lat, $lng, $distance, $speedMetersPerSecond, $timeDelta, 'teleport');
         }
     }
 
@@ -45,8 +46,21 @@ class LocationValidator
         float $lng,
         float $distance,
         ?float $speedMetersPerSecond,
-        int $timeDelta
+        int $timeDelta,
+        string $reason
     ): void {
+        SecurityEvent::create([
+            'user_id' => $previousLocation->user_id,
+            'type' => $reason,
+            'context' => [
+                'from' => [$previousLocation->lat, $previousLocation->lng],
+                'to' => [$lat, $lng],
+                'distance_m' => $distance,
+                'time_delta_s' => $timeDelta,
+                'reported_speed_mps' => $speedMetersPerSecond,
+            ],
+        ]);
+
         Log::warning('geo.teleport_detected', [
             'user_id' => $previousLocation->user_id,
             'from' => [$previousLocation->lat, $previousLocation->lng],
