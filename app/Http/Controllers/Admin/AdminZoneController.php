@@ -4,18 +4,25 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ZoneRequest;
+use App\Domain\Encounters\ZoneSpawnGenerator;
 use App\Models\Zone;
+use App\Models\Type;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
 class AdminZoneController extends Controller
 {
+    public function __construct(private readonly ZoneSpawnGenerator $spawnGenerator)
+    {
+    }
+
     public function map(): View
     {
         return view('admin.zones.map', [
             'zones' => $this->mapZones(),
             'googleMapsApiKey' => config('services.google.maps_api_key'),
+            'types' => Type::orderBy('name')->get(),
         ]);
     }
 
@@ -25,6 +32,8 @@ class AdminZoneController extends Controller
         $this->fillZoneFromRequest($zone, $request->validated());
         $zone->save();
 
+        $this->refreshSpawnsIfAutomatic($zone);
+
         return redirect()->route('admin.zones.map')->with('status', 'Zone created.');
     }
 
@@ -32,6 +41,8 @@ class AdminZoneController extends Controller
     {
         $this->fillZoneFromRequest($zone, $request->validated());
         $zone->save();
+
+        $this->refreshSpawnsIfAutomatic($zone);
 
         return redirect()->route('admin.zones.map')->with('status', 'Zone updated.');
     }
@@ -51,6 +62,10 @@ class AdminZoneController extends Controller
             'min_lng' => $shape['min_lng'],
             'max_lng' => $shape['max_lng'],
             'rules_json' => $data['rules_json'] ?? null,
+            'spawn_strategy' => $data['spawn_strategy'] ?? $zone->spawn_strategy,
+            'spawn_rules' => [
+                'types' => $data['spawn_types'] ?? ($zone->spawn_rules['types'] ?? []),
+            ],
         ]);
 
         $zone->setAttribute('geom', $shape['geom']);
@@ -155,6 +170,8 @@ class AdminZoneController extends Controller
                     'min_lng' => $zone->min_lng,
                     'max_lng' => $zone->max_lng,
                 ],
+                'spawn_rules' => $zone->spawn_rules,
+                'spawn_strategy' => $zone->spawn_strategy,
                 'shape' => $this->formatShape(
                     $zone->shape_type,
                     $zone->geom_wkt ?? null,
@@ -219,5 +236,14 @@ class AdminZoneController extends Controller
         [$lng, $lat] = array_map('floatval', preg_split('/\s+/', trim($matches[1])) ?: []);
 
         return ['lat' => $lat, 'lng' => $lng];
+    }
+
+    private function refreshSpawnsIfAutomatic(Zone $zone): void
+    {
+        if ($zone->spawn_strategy === 'manual') {
+            return;
+        }
+
+        $this->spawnGenerator->generateFromZone($zone, replaceExisting: true);
     }
 }

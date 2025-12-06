@@ -21,6 +21,9 @@
             <div class="text-sm text-gray-700 space-y-1">
                 <p><strong>Priority:</strong> {{ $zone->priority }}</p>
                 <p><strong>Spawn strategy:</strong> {{ ucfirst($zone->spawn_strategy ?? 'manual') }}</p>
+                @php($preferredTypes = collect($zone->spawn_rules['types'] ?? []))
+                <p><strong>Preferred types:</strong> {{ $preferredTypes->isEmpty() ? 'None selected' : $types->whereIn('id', $preferredTypes)->pluck('name')->join(', ') }}</p>
+                <p class="text-xs text-gray-500">Non-manual zones auto-generate spawn tables after each save so encounters always have monsters available.</p>
             </div>
         </div>
 
@@ -57,6 +60,7 @@
 
     <div class="bg-white shadow rounded p-4">
         <h2 class="text-xl font-semibold mb-3">Random spawn generator</h2>
+        <p class="text-sm text-gray-600 mb-2">This generator respects zone-level preferred types when you leave the type selector empty.</p>
         <form method="POST" action="{{ route('admin.zones.spawns.generate', $zone) }}" class="space-y-3">
             @csrf
             <div class="grid md:grid-cols-3 gap-3">
