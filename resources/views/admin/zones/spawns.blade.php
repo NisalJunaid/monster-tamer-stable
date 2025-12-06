@@ -1,86 +1,86 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Zone Spawn Entries</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 1rem; }
-        h1 { margin-bottom: 0.5rem; }
-        .status { margin-bottom: 1rem; padding: 0.5rem 0.75rem; background: #ecfdf3; color: #047857; border: 1px solid #bbf7d0; border-radius: 6px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        th, td { border: 1px solid #e5e7eb; padding: 0.5rem; text-align: left; }
-        form { margin-bottom: 1rem; }
-        input, select { padding: 0.35rem; }
-        .actions { display: flex; gap: 0.5rem; align-items: center; }
-    </style>
-</head>
-<body>
-    <h1>Spawn Entries for {{ $zone->name }}</h1>
-    <p><a href="{{ route('admin.zones.map') }}">&larr; Back to Zones</a></p>
+@extends('layouts.app')
+
+@section('content')
+<div class="space-y-4">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold">Spawn Entries for {{ $zone->name }}</h1>
+            <p class="text-gray-600">Manage which species appear in this zone.</p>
+        </div>
+        <a href="{{ route('admin.zones.map') }}" class="text-teal-600 underline">&larr; Back to Zones</a>
+    </div>
 
     @if(session('status'))
-        <div class="status">{{ session('status') }}</div>
+        <div class="p-3 bg-green-100 border border-green-200 rounded text-green-800">{{ session('status') }}</div>
     @endif
 
-    <h2>Create Entry</h2>
-    <form method="POST" action="{{ route('admin.zones.spawns.store', $zone) }}">
-        @csrf
-        <div class="actions">
-            <label>Species ID <input type="number" name="species_id" required></label>
-            <label>Weight <input type="number" name="weight" value="1" required></label>
-            <label>Min Lv <input type="number" name="min_level" value="1" required></label>
-            <label>Max Lv <input type="number" name="max_level" value="5" required></label>
-            <label>Rarity <input type="text" name="rarity_tier" placeholder="common"></label>
-            <button type="submit">Add</button>
-        </div>
-    </form>
+    <div class="bg-white shadow rounded p-4">
+        <h2 class="text-xl font-semibold mb-3">Create Entry</h2>
+        <form method="POST" action="{{ route('admin.zones.spawns.store', $zone) }}" class="space-y-2">
+            @csrf
+            <div class="grid md:grid-cols-5 gap-3">
+                <label class="text-sm">Species ID <input type="number" name="species_id" required class="w-full border rounded px-2 py-1"></label>
+                <label class="text-sm">Weight <input type="number" name="weight" value="1" required class="w-full border rounded px-2 py-1"></label>
+                <label class="text-sm">Min Lv <input type="number" name="min_level" value="1" required class="w-full border rounded px-2 py-1"></label>
+                <label class="text-sm">Max Lv <input type="number" name="max_level" value="5" required class="w-full border rounded px-2 py-1"></label>
+                <label class="text-sm">Rarity <input type="text" name="rarity_tier" placeholder="common" class="w-full border rounded px-2 py-1"></label>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Add Entry</button>
+        </form>
+    </div>
 
-    <h2>Existing Entries</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Species</th>
-                <th>Weight</th>
-                <th>Level Range</th>
-                <th>Rarity</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($zone->spawnEntries as $entry)
-                <tr>
-                    <td>{{ $entry->id }}</td>
-                    <td>{{ $entry->species->name ?? ('#'.$entry->species_id) }}</td>
-                    <td>{{ $entry->weight }}</td>
-                    <td>{{ $entry->min_level }} - {{ $entry->max_level }}</td>
-                    <td>{{ $entry->rarity_tier ?? 'n/a' }}</td>
-                    <td>
-                        <form method="POST" action="{{ route('admin.zones.spawns.update', [$zone, $entry]) }}" style="margin-bottom:0.5rem;">
-                            @csrf
-                            @method('PUT')
-                            <div class="actions">
-                                <input type="number" name="species_id" value="{{ $entry->species_id }}" required>
-                                <input type="number" name="weight" value="{{ $entry->weight }}" required>
-                                <input type="number" name="min_level" value="{{ $entry->min_level }}" required>
-                                <input type="number" name="max_level" value="{{ $entry->max_level }}" required>
-                                <input type="text" name="rarity_tier" value="{{ $entry->rarity_tier }}">
-                                <button type="submit">Update</button>
-                            </div>
-                        </form>
-                        <form method="POST" action="{{ route('admin.zones.spawns.destroy', [$zone, $entry]) }}">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="6">No entries yet.</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
-</body>
-</html>
+    <div class="bg-white shadow rounded p-4">
+        <h2 class="text-xl font-semibold mb-3">Existing Entries</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full border border-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="border p-2">ID</th>
+                        <th class="border p-2">Species</th>
+                        <th class="border p-2">Weight</th>
+                        <th class="border p-2">Level Range</th>
+                        <th class="border p-2">Rarity</th>
+                        <th class="border p-2">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($zone->spawnEntries as $entry)
+                        <tr>
+                            <td class="border p-2">{{ $entry->id }}</td>
+                            <td class="border p-2">{{ $entry->species->name ?? ('#'.$entry->species_id) }}</td>
+                            <td class="border p-2">{{ $entry->weight }}</td>
+                            <td class="border p-2">{{ $entry->min_level }} - {{ $entry->max_level }}</td>
+                            <td class="border p-2">{{ $entry->rarity_tier ?? 'n/a' }}</td>
+                            <td class="border p-2">
+                                <div class="space-y-2">
+                                    <form method="POST" action="{{ route('admin.zones.spawns.update', [$zone, $entry]) }}" class="space-y-2">
+                                        @csrf
+                                    @method('PUT')
+                                        <div class="grid md:grid-cols-5 gap-2 mb-2">
+                                            <input type="number" name="species_id" value="{{ $entry->species_id }}" required class="border rounded px-2 py-1">
+                                            <input type="number" name="weight" value="{{ $entry->weight }}" required class="border rounded px-2 py-1">
+                                            <input type="number" name="min_level" value="{{ $entry->min_level }}" required class="border rounded px-2 py-1">
+                                            <input type="number" name="max_level" value="{{ $entry->max_level }}" required class="border rounded px-2 py-1">
+                                            <input type="text" name="rarity_tier" value="{{ $entry->rarity_tier }}" class="border rounded px-2 py-1">
+                                        </div>
+                                        <button type="submit" class="px-3 py-1 bg-teal-600 text-white rounded">Update</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('admin.zones.spawns.destroy', [$zone, $entry]) }}">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="px-3 py-1 bg-red-600 text-white rounded">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="p-3 text-center text-gray-600">No entries yet.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+@endsection
