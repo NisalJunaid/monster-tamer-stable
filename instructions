@@ -1,0 +1,150 @@
+# DigitalOcean Droplet Setup (Ubuntu 22.04+)
+
+These steps assume a fresh Ubuntu droplet with sudo access. Replace placeholders in `<angle brackets>` with your values.
+
+## 1) System prep
+- SSH to the droplet and update packages:
+  ```bash
+  sudo apt update && sudo apt upgrade -y
+  sudo timedatectl set-timezone <Region/City>
+  ```
+- Install build helpers:
+  ```bash
+  sudo apt install -y software-properties-common curl git unzip ufw
+  ```
+
+## 2) Install PHP 8.2 + extensions
+- Add the PPA and install PHP/FPM with required extensions:
+  ```bash
+  sudo add-apt-repository ppa:ondrej/php -y
+  sudo apt update
+  sudo apt install -y php8.2 php8.2-fpm php8.2-cli php8.2-pgsql php8.2-redis php8.2-xml php8.2-mbstring php8.2-curl php8.2-zip php8.2-gd php8.2-bcmath
+  ```
+- Set PHP-FPM to start on boot: `sudo systemctl enable --now php8.2-fpm`
+
+## 3) Databases & cache
+- Install PostgreSQL + PostGIS and Redis:
+  ```bash
+  sudo apt install -y postgresql postgresql-contrib postgis postgresql-14-postgis-3 redis-server
+  sudo systemctl enable --now postgresql redis-server
+  ```
+- Create the database and user (adjust names/passwords):
+  ```bash
+  sudo -u postgres psql -c "CREATE USER monster_user WITH PASSWORD '<strong_password>';"
+  sudo -u postgres psql -c "CREATE DATABASE monster_db OWNER monster_user;"
+  sudo -u postgres psql -d monster_db -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+  ```
+
+## 4) Web server (Nginx example)
+- Install Nginx: `sudo apt install -y nginx`
+- Create a server block `/etc/nginx/sites-available/monster.conf`:
+  ```nginx
+  server {
+      listen 80;
+      server_name <your_domain_or_ip>;
+
+      root /var/www/game-monster-pvp/public;
+      index index.php;
+
+      add_header X-Frame-Options "SAMEORIGIN";
+      add_header X-Content-Type-Options "nosniff";
+
+      location / {
+          try_files $uri $uri/ /index.php?$query_string;
+      }
+
+      location ~ \.php$ {
+          include snippets/fastcgi-php.conf;
+          fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+      }
+
+      location ~ /\.ht {
+          deny all;
+      }
+
+      client_max_body_size 20M;
+  }
+  ```
+- Enable the site and test:
+  ```bash
+  sudo ln -s /etc/nginx/sites-available/monster.conf /etc/nginx/sites-enabled/
+  sudo nginx -t && sudo systemctl reload nginx
+  ```
+
+## 5) Deploy the application
+- Clone the repository into `/var/www`:
+  ```bash
+  cd /var/www
+  sudo git clone <repo_url> game-monster-pvp
+  cd game-monster-pvp
+  sudo chown -R $USER:www-data .
+  ```
+- Install Composer and PHP deps:
+  ```bash
+  cd /var/www/game-monster-pvp
+  curl -sS https://getcomposer.org/installer | php
+  php composer.phar install --no-dev --optimize-autoloader
+  ```
+- Install Node tooling and build assets (for Vite):
+  ```bash
+  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+  sudo apt install -y nodejs
+  npm ci
+  npm run build
+  ```
+
+## 6) Environment configuration
+- Copy the example env and set keys:
+  ```bash
+  cp .env.example .env
+  php artisan key:generate
+  ```
+- Edit `.env` with database, Redis, and app URL settings:
+  ```env
+  APP_ENV=production
+  APP_KEY=base64:generated_key
+  APP_URL=https://<your_domain>
+
+  DB_CONNECTION=pgsql
+  DB_HOST=127.0.0.1
+  DB_PORT=5432
+  DB_DATABASE=monster_db
+  DB_USERNAME=monster_user
+  DB_PASSWORD=<strong_password>
+
+  REDIS_HOST=127.0.0.1
+  REDIS_PASSWORD=null
+  REDIS_PORT=6379
+  ```
+
+## 7) Database migrations & storage
+- Run migrations (and seed if available):
+  ```bash
+  php artisan migrate --force
+  # php artisan db:seed --force   # if/when seeders are added
+  ```
+- Create the storage symlink and set permissions:
+  ```bash
+  php artisan storage:link
+  sudo chown -R www-data:www-data storage bootstrap/cache
+  sudo find storage -type d -exec chmod 775 {} \;
+  sudo find storage -type f -exec chmod 664 {} \;
+  ```
+
+## 8) Scheduler & queues (optional but recommended)
+- Create a cron entry for the Laravel scheduler:
+  ```bash
+  (crontab -l 2>/dev/null; echo "* * * * * cd /var/www/game-monster-pvp && php artisan schedule:run >> /dev/null 2>&1") | crontab -
+  ```
+- Use Supervisor or systemd to run any queue workers when they are introduced.
+
+## 9) HTTPS (Let's Encrypt)
+- If you have a domain, secure it with Certbot:
+  ```bash
+  sudo apt install -y certbot python3-certbot-nginx
+  sudo certbot --nginx -d <your_domain>
+  ```
+
+## 10) Verify
+- Visit `http(s)://<your_domain>` and confirm the Monster PvP landing page loads instead of the default Laravel screen.
+- Authenticate as an admin user, then open `/admin/zones/map` to start drawing encounter regions.
