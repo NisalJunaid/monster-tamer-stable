@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ZoneSpawnEntryRequest;
+use App\Http\Requests\Admin\ZoneSpawnGenerateRequest;
+use App\Domain\Encounters\ZoneSpawnGenerator;
+use App\Models\MonsterSpecies;
+use App\Models\Type;
 use App\Models\Zone;
 use App\Models\ZoneSpawnEntry;
 use Illuminate\Contracts\View\View;
@@ -11,11 +15,18 @@ use Illuminate\Http\RedirectResponse;
 
 class AdminZoneSpawnController extends Controller
 {
+    public function __construct(private readonly ZoneSpawnGenerator $generator)
+    {
+    }
+
     public function index(Zone $zone): View
     {
         $zone->load(['spawnEntries.species']);
 
-        return view('admin.zones.spawns', compact('zone'));
+        $species = MonsterSpecies::orderBy('name')->get();
+        $types = Type::orderBy('name')->get();
+
+        return view('admin.zones.spawns', compact('zone', 'species', 'types'));
     }
 
     public function store(ZoneSpawnEntryRequest $request, Zone $zone): RedirectResponse
@@ -45,5 +56,19 @@ class AdminZoneSpawnController extends Controller
         $spawnEntry->delete();
 
         return redirect()->route('admin.zones.spawns.index', $zone)->with('status', 'Spawn entry removed.');
+    }
+
+    public function generate(ZoneSpawnGenerateRequest $request, Zone $zone): RedirectResponse
+    {
+        $rules = $request->validated();
+        $replace = $request->boolean('replace_existing', true);
+
+        $generated = $this->generator->generate($zone, $rules, $replace);
+
+        $message = $generated->isEmpty()
+            ? 'No species matched the generator filters.'
+            : 'Spawn entries generated successfully.';
+
+        return redirect()->route('admin.zones.spawns.index', $zone)->with('status', $message);
     }
 }

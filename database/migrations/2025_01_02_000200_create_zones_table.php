@@ -23,6 +23,8 @@ return new class extends Migration {
             $table->double('min_lng')->nullable();
             $table->double('max_lng')->nullable();
             $table->json('rules_json')->nullable();
+            $table->string('spawn_strategy')->default('manual');
+            $table->json('spawn_rules')->nullable();
             $table->timestamps();
 
             if (! $this->usesPostgres()) {

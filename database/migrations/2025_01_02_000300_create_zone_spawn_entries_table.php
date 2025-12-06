@@ -17,9 +17,12 @@ return new class extends Migration {
             $table->integer('weight');
             $table->integer('min_level');
             $table->integer('max_level');
-            $table->string('rarity_tier');
+            $table->string('rarity_tier')->nullable();
             $table->json('conditions_json')->nullable();
             $table->timestamps();
+
+            $table->index('zone_id');
+            $table->index('species_id');
         });
     }
 

@@ -57,4 +57,5 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/zones/{zone}/spawns', [AdminZoneSpawnController::class, 'store'])->name('zones.spawns.store');
     Route::put('/zones/{zone}/spawns/{spawnEntry}', [AdminZoneSpawnController::class, 'update'])->name('zones.spawns.update');
     Route::delete('/zones/{zone}/spawns/{spawnEntry}', [AdminZoneSpawnController::class, 'destroy'])->name('zones.spawns.destroy');
+    Route::post('/zones/{zone}/spawns/generate', [AdminZoneSpawnController::class, 'generate'])->name('zones.spawns.generate');
 });
