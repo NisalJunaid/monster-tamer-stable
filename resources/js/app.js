@@ -4,3 +4,4 @@ import './modules/battle';
 import './modules/encounters';
 import './modules/live_badge';
 import './modules/wild_battle';
+import './modules/dashboard';

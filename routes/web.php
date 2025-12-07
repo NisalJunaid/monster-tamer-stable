@@ -9,6 +9,7 @@ use App\Http\Controllers\Web\BattleController as WebBattleController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\EncounterController as WebEncounterController;
 use App\Http\Controllers\Web\WildBattleController as WebWildBattleController;
+use App\Http\Controllers\Web\TeamController;
 use App\Http\Controllers\Web\PvpController as WebPvpController;
 use App\Http\Controllers\Web\StarterController;
 use App\Models\Battle;
@@ -53,6 +54,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/encounters/{ticket}/battle/switch', [WebWildBattleController::class, 'switchActive'])->name('encounters.battle.switch');
         Route::post('/encounters/{ticket}/battle/tame', [WebWildBattleController::class, 'tame'])->name('encounters.battle.tame');
         Route::post('/encounters/{ticket}/battle/run', [WebWildBattleController::class, 'run'])->name('encounters.battle.run');
+
+        Route::post('/team/set-slot', [TeamController::class, 'setSlot'])->name('team.set');
+        Route::post('/team/clear-slot', [TeamController::class, 'clearSlot'])->name('team.clear');
 
         Route::get('/pvp', [WebPvpController::class, 'index'])->name('pvp.index');
         Route::post('/pvp/queue', [WebPvpController::class, 'queue'])->name('pvp.queue');
