@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 
 class LiveMatchmaker
 {
@@ -28,6 +29,10 @@ class LiveMatchmaker
      */
     public function join(User $user, string $mode = 'ranked'): array
     {
+        if ($mode === 'ranked' && ! $this->hasFullTeam($user)) {
+            abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'Ranked requires a full team of 6 monsters.');
+        }
+
         $profile = $this->rankingService->ensureProfile($user->id);
 
         $entry = MatchmakingQueue::updateOrCreate(
@@ -210,5 +215,10 @@ class LiveMatchmaker
             ->orderBy('id')
             ->take(3)
             ->get();
+    }
+
+    public function hasFullTeam(User $user): bool
+    {
+        return MonsterInstance::where('user_id', $user->id)->count() >= 6;
     }
 }

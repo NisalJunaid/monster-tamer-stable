@@ -10,6 +10,7 @@
      data-queue-size="{{ $queueCount }}"
      data-is-queued="{{ $queueEntry ? '1' : '0' }}"
      data-current-mode="{{ $queueEntry->mode ?? '' }}"
+     data-can-queue-ranked="{{ $canQueueRanked ? '1' : '0' }}"
      data-active-battle-id="{{ $activeBattleId ?? '' }}">
     <div class="flex items-start justify-between gap-4">
         <div>
@@ -35,9 +36,12 @@
         <div class="border rounded-lg p-4 bg-gray-50 space-y-2">
             <p class="text-sm font-semibold text-gray-700">Choose queue</p>
             <div class="flex flex-wrap gap-2">
-                <button class="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-500" data-queue-mode="ranked">Ranked ladder</button>
+                <button class="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-500 {{ $canQueueRanked ? '' : 'opacity-50 cursor-not-allowed' }}" data-queue-mode="ranked" @if (! $canQueueRanked) disabled @endif>Ranked ladder</button>
                 <button class="px-4 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-500" data-queue-mode="casual">Casual</button>
             </div>
+            @unless($canQueueRanked)
+                <p class="text-xs text-red-600">Ranked ladder requires a full team of 6 monsters.</p>
+            @endunless
             <p class="text-xs text-gray-500">Search starts instantly when you press a mode.</p>
         </div>
 

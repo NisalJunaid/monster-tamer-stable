@@ -143,6 +143,7 @@ function initMatchmakingPanel(panel = getPanel()) {
     const queueSizeEl = activePanel.querySelector('[data-queue-size]');
     const modeBadge = activePanel.querySelector('[data-queue-mode-label]');
     const searchingBanner = activePanel.querySelector('[data-searching-banner]');
+    const canQueueRanked = activePanel.dataset.canQueueRanked === '1';
 
     if (queueSizeEl && activePanel.dataset.queueSize) {
         queueSizeEl.textContent = activePanel.dataset.queueSize;
@@ -222,6 +223,11 @@ function initMatchmakingPanel(panel = getPanel()) {
     };
 
     const startSearch = (mode) => {
+        if (mode === 'ranked' && !canQueueRanked) {
+            setStatus('Ranked ladder requires a full team of 6 monsters.');
+            return;
+        }
+
         if (modeBadge) {
             modeBadge.textContent = mode;
             modeBadge.classList.remove('hidden');
@@ -257,8 +263,14 @@ function initMatchmakingPanel(panel = getPanel()) {
                     startQueuePolling();
                 }
             })
-            .catch(() => {
-                setStatus('Could not join the queue right now.');
+            .catch((error) => {
+                const message = error?.response?.data?.message;
+                if (error?.response?.status === 422 && message) {
+                    setStatus(message);
+                    return;
+                }
+
+                setStatus(message || 'Could not join the queue right now.');
             });
     };
 
@@ -267,6 +279,10 @@ function initMatchmakingPanel(panel = getPanel()) {
         button.addEventListener('click', (event) => {
             event.preventDefault();
             const mode = button.dataset.queueMode;
+            if (button.disabled) {
+                return;
+            }
+
             if (mode) {
                 startSearch(mode);
             }

@@ -24,6 +24,7 @@ class PvpController extends Controller
         $user = $request->user();
         $queueEntry = MatchmakingQueue::where('user_id', $user->id)->first();
         $profile = $this->rankingService->ensureProfile($user->id);
+        $canQueueRanked = $this->matchmaker->hasFullTeam($user);
         $latestBattle = Battle::where(function ($query) use ($user) {
             $query->where('player1_id', $user->id)->orWhere('player2_id', $user->id);
         })->latest('id')->first();
@@ -47,6 +48,7 @@ class PvpController extends Controller
                 'searchTimeout' => LiveMatchmaker::SEARCH_TIMEOUT_SECONDS,
                 'currentWindow' => $this->matchmaker->windowForEntry($queueEntry),
                 'queueCount' => $queueCount,
+                'canQueueRanked' => $canQueueRanked,
             ]);
         }
 
@@ -58,6 +60,7 @@ class PvpController extends Controller
             'currentWindow' => $this->matchmaker->windowForEntry($queueEntry),
             'queueCount' => $queueCount,
             'activeBattleId' => $activeBattle?->id,
+            'canQueueRanked' => $canQueueRanked,
         ]);
     }
 
@@ -65,6 +68,7 @@ class PvpController extends Controller
     {
         $user = $request->user();
         $queueEntry = MatchmakingQueue::where('user_id', $user->id)->first();
+        $canQueueRanked = $this->matchmaker->hasFullTeam($user);
         $activeBattle = Battle::where('status', 'active')
             ->where(function ($query) use ($user) {
                 $query->where('player1_id', $user->id)->orWhere('player2_id', $user->id);
@@ -89,6 +93,7 @@ class PvpController extends Controller
             'currentWindow' => $this->matchmaker->windowForEntry($queueEntry),
             'queueCount' => $queueCount,
             'activeBattleId' => $activeBattle?->id,
+            'canQueueRanked' => $canQueueRanked,
         ]);
     }
 

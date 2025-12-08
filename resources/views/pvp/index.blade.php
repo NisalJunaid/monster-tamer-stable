@@ -23,6 +23,7 @@
         'currentWindow' => $currentWindow,
         'queueCount' => $queueCount,
         'activeBattleId' => $activeBattleId,
+        'canQueueRanked' => $canQueueRanked,
     ])
 
     <div class="bg-white shadow rounded-xl p-6">
