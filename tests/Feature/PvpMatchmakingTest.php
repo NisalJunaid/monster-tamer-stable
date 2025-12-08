@@ -6,8 +6,10 @@ use App\Models\MatchmakingQueue;
 use App\Models\MonsterInstance;
 use App\Models\MonsterSpecies;
 use App\Models\Move;
+use App\Models\PlayerMonster;
 use App\Models\PvpProfile;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\MonsterSpeciesSeeder;
 use Database\Seeders\MoveSeeder;
 use Database\Seeders\TypeEffectivenessSeeder;
@@ -21,7 +23,10 @@ class PvpMatchmakingTest extends TestCase
 
     public function test_player_can_queue_and_dequeue_for_pvp(): void
     {
+        $this->seed(DatabaseSeeder::class);
+
         $user = User::factory()->create();
+        $this->giveTeam($user, 6);
         $token = $user->createToken('test')->plainTextToken;
 
         $queueResponse = $this->withToken($token)->postJson('/api/pvp/queue', ['mode' => 'ranked']);
@@ -47,9 +52,14 @@ class PvpMatchmakingTest extends TestCase
 
     public function test_matchmaker_pairs_ranked_players(): void
     {
+        $this->seed(DatabaseSeeder::class);
+
         $players = User::factory()->count(2)->create();
         PvpProfile::query()->create(['user_id' => $players[0]->id, 'mmr' => 1100]);
         PvpProfile::query()->create(['user_id' => $players[1]->id, 'mmr' => 900]);
+
+        $this->giveTeam($players[0], 6);
+        $this->giveTeam($players[1], 6);
 
         MatchmakingQueue::query()->create([
             'user_id' => $players[0]->id,
@@ -118,6 +128,47 @@ class PvpMatchmakingTest extends TestCase
         return [$player, $opponent, $tokenPlayer, $tokenOpponent];
     }
 
+    public function test_ranked_requires_full_team(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $user = User::factory()->create();
+        $token = $user->createToken('test')->plainTextToken;
+
+        $response = $this->withToken($token)->postJson('/api/pvp/queue', ['mode' => 'ranked']);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_ranked_battle_uses_full_party_size(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        [$player, $opponent] = User::factory()->count(2)->create();
+        $this->giveTeam($player, 6);
+        $this->giveTeam($opponent, 6);
+
+        MatchmakingQueue::query()->create([
+            'user_id' => $player->id,
+            'mode' => 'ranked',
+            'queued_at' => now()->subMinute(),
+        ]);
+
+        MatchmakingQueue::query()->create([
+            'user_id' => $opponent->id,
+            'mode' => 'ranked',
+            'queued_at' => now(),
+        ]);
+
+        $this->artisan('pvp:matchmake')->assertExitCode(0);
+
+        $battle = \App\Models\Battle::first();
+
+        $this->assertNotNull($battle);
+        $this->assertCount(6, $battle->meta_json['participants'][$player->id]['monsters'] ?? []);
+        $this->assertCount(6, $battle->meta_json['participants'][$opponent->id]['monsters'] ?? []);
+    }
+
     private function startBattle(User $player, User $opponent, string $tokenPlayer, string $tokenOpponent, int $seed): array
     {
         [$playerMonster, $opponentMonster] = MonsterInstance::query()->whereIn('user_id', [$player->id, $opponent->id])->get()->
@@ -155,5 +206,28 @@ class PvpMatchmakingTest extends TestCase
         }
 
         return $instance->fresh(['currentStage', 'species', 'moves.move.type']);
+    }
+
+    private function giveTeam(User $user, int $size): void
+    {
+        $species = MonsterSpecies::with(['learnset', 'stages'])->get();
+
+        foreach (range(1, $size) as $index) {
+            /** @var MonsterSpecies $speciesEntry */
+            $speciesEntry = $species[($index - 1) % $species->count()];
+            $stage = $speciesEntry->stages->sortBy('stage_number')->first();
+
+            PlayerMonster::create([
+                'user_id' => $user->id,
+                'species_id' => $speciesEntry->id,
+                'level' => 10 + $index,
+                'exp' => 0,
+                'current_hp' => $stage?->hp ?? 40,
+                'max_hp' => $stage?->hp ?? 40,
+                'nickname' => 'TestMon '.$index,
+                'is_in_team' => true,
+                'team_slot' => $index,
+            ]);
+        }
     }
 }

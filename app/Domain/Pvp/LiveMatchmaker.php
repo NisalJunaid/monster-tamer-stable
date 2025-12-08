@@ -6,8 +6,11 @@ use App\Domain\Battle\BattleEngine;
 use App\Events\PvpMatchFound;
 use App\Events\PvpSearchStatus;
 use App\Models\Battle;
+use App\Models\InstanceMove;
 use App\Models\MatchmakingQueue;
 use App\Models\MonsterInstance;
+use App\Models\PlayerMonster;
+use App\Models\SpeciesLearnset;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -208,17 +211,62 @@ class LiveMatchmaker
 
     private function buildParty(User $user): Collection
     {
-        return MonsterInstance::query()
-            ->with(['currentStage', 'species.primaryType', 'species.secondaryType', 'moves.move.type'])
+        $ownedMonsters = PlayerMonster::query()
+            ->with(['species.primaryType', 'species.secondaryType', 'species.learnset.move.type', 'species.stages'])
             ->where('user_id', $user->id)
+            ->orderByDesc('is_in_team')
+            ->orderBy('team_slot')
             ->orderByDesc('level')
-            ->orderBy('id')
-            ->take(3)
+            ->take(6)
             ->get();
+
+        return $ownedMonsters->map(fn (PlayerMonster $monster) => $this->toInstance($monster));
     }
 
     public function hasFullTeam(User $user): bool
     {
-        return MonsterInstance::where('user_id', $user->id)->count() >= 6;
+        return PlayerMonster::where('user_id', $user->id)->count() >= 6;
+    }
+
+    private function toInstance(PlayerMonster $monster): MonsterInstance
+    {
+        $stage = $monster->species?->stages->sortBy('stage_number')->first();
+
+        $instance = new MonsterInstance([
+            'id' => $monster->id,
+            'user_id' => $monster->user_id,
+            'species_id' => $monster->species_id,
+            'current_stage_id' => $stage?->id,
+            'nickname' => $monster->nickname,
+            'level' => $monster->level,
+        ]);
+
+        $instance->setRelation('currentStage', $stage);
+        $instance->setRelation('species', $monster->species);
+        $instance->setRelation('moves', $this->buildMoves($monster));
+
+        return $instance;
+    }
+
+    private function buildMoves(PlayerMonster $monster): Collection
+    {
+        $eligibleMoves = $monster->species?->learnset
+            ->filter(fn (SpeciesLearnset $entry) => $entry->learn_level <= $monster->level)
+            ->sortByDesc('learn_level')
+            ->take(4);
+
+        if ($eligibleMoves === null || $eligibleMoves->isEmpty()) {
+            $eligibleMoves = $monster->species?->learnset->sortBy('learn_level')->take(4) ?? collect();
+        }
+
+        return $eligibleMoves->values()->map(function (SpeciesLearnset $entry, int $index) {
+            $instanceMove = new InstanceMove([
+                'slot' => $index + 1,
+            ]);
+
+            $instanceMove->setRelation('move', $entry->move);
+
+            return $instanceMove;
+        });
     }
 }
