@@ -12,6 +12,17 @@ class BattleActionRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('slot')) {
+            $this->merge(['slot' => (int) $this->input('slot')]);
+        }
+
+        if ($this->filled('monster_instance_id') && is_numeric($this->input('monster_instance_id'))) {
+            $this->merge(['monster_instance_id' => (int) $this->input('monster_instance_id')]);
+        }
+    }
+
     public function rules(): array
     {
         return [

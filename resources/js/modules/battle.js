@@ -160,16 +160,17 @@ const renderCommands = (state, viewerId) => {
 
     const moveButtons = renderMoves(active.moves || []);
     const csrf = document.head.querySelector('meta[name="csrf-token"]')?.content || '';
-    const swapButtons = healthyBench.length
+    const validSwapTargets = healthyBench.filter((monster) => Number.isFinite(Number(monster.id)));
+    const swapButtons = validSwapTargets.length
         ? `
             <div class="grid sm:grid-cols-2 gap-2" data-swap-options>
-                ${healthyBench
+                ${validSwapTargets
                     .map(
                         (monster) => `
                             <form method="POST" class="w-full" data-battle-action-form>
                                 <input type="hidden" name="_token" value="${escapeHtml(csrf)}" />
                                 <input type="hidden" name="type" value="swap">
-                                <input type="hidden" name="monster_instance_id" value="${monster.id}">
+                                <input type="hidden" name="monster_instance_id" value="${Number(monster.id)}">
                                 <button class="w-full px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left">
                                     <div class="font-semibold">${escapeHtml(monster.name)}</div>
                                     <p class="text-sm text-gray-600">Lv ${monster.level ?? '?'} • HP ${monster.current_hp ?? 0} / ${monster.max_hp ?? 0}</p>
