@@ -8,6 +8,9 @@
     @auth
         <meta name="user-id" content="{{ auth()->id() }}">
         <meta name="encounter-index-url" content="{{ route('encounters.index') }}">
+        @if (session('api_token'))
+            <meta name="api-token" content="{{ session('api_token') }}">
+        @endif
     @endauth
     <script src="https://cdn.tailwindcss.com"></script>
     @vite(['resources/js/app.js'])
