@@ -127,7 +127,8 @@ const normalizeMoves = (moves = []) => {
 const normalizeMonsters = (monsters = []) => {
     return monsters
         .map((monster, index) => {
-            const instanceId = monster.instance_id ?? monster.id ?? monster.monster_instance_id ?? monster.player_monster_id ?? index;
+            const instanceId =
+                monster.player_monster_id ?? monster.instance_id ?? monster.id ?? monster.monster_instance_id ?? index;
 
             return {
                 id: instanceId,
@@ -376,10 +377,7 @@ export function initWildBattle() {
         if (target instanceof HTMLElement && target.closest('[data-switch-id]')) {
             const switchBtn = target.closest('[data-switch-id]');
             const monsterId = Number.parseInt(switchBtn.dataset.switchId || '0', 10);
-            // PvP BattleEngine::swapActive checks the MonsterInstance id stored on
-            // each battle participant under `id`; this payload must preserve that
-            // identifier rather than a player_monsters.id or other client value.
-            const payload = { type: 'swap', monster_instance_id: monsterId };
+            const payload = { type: 'swap', player_monster_id: monsterId };
 
             if (! monsterId) {
                 setActionStatus('Please select a valid monster.');
