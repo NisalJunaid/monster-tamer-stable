@@ -209,6 +209,8 @@ class WildBattleService
         $party = $this->buildPlayerParty($user);
         $activeId = $party[0]['id'] ?? null;
 
+        // For wild battles, battle_state passed to MonsterSwitchService includes: player_monsters, player_active_monster_id,
+        // turn, last_action_log, active/resolved flags, and wild opponent details.
         return [
             'active' => true,
             'wild_ai' => true,
