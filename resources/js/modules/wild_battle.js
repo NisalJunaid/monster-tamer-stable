@@ -101,6 +101,75 @@ const parseInitialState = () => {
     }
 };
 
+const normalizeMoves = (moves = []) => {
+    if (!moves.length) return [];
+
+    return moves
+        .map((move, index) => {
+            const slot = move.slot ?? index + 1;
+
+            return {
+                id: move.id ?? slot,
+                slot,
+                name: move.name ?? move.label ?? 'Move',
+                type: move.type ?? 'Neutral',
+                category: move.category ?? 'physical',
+                power: move.power ?? null,
+                effect: move.effect ?? move.effects ?? [],
+                style: move.style ?? `${slot}`,
+            };
+        })
+        .filter(Boolean);
+};
+
+const normalizeMonsters = (monsters = []) => {
+    return monsters
+        .map((monster, index) => ({
+            id: monster.id ?? index,
+            name: monster.name ?? 'Unknown',
+            level: monster.level ?? null,
+            types: monster.types ?? [],
+            type_names: monster.type_names ?? [],
+            stats: monster.stats ?? [],
+            max_hp: monster.max_hp ?? monster.hp ?? null,
+            current_hp: monster.current_hp ?? monster.hp ?? null,
+            status: monster.status ?? null,
+            moves: normalizeMoves(monster.moves || []),
+        }))
+        .filter(Boolean);
+};
+
+const resolveActiveId = (side = {}, monsters = []) => {
+    const activeIndex = side.active_index ?? 0;
+    const fallback = monsters[0]?.id ?? null;
+
+    return monsters[activeIndex]?.id ?? fallback;
+};
+
+const resolveActiveMonster = (side = {}, monsters = []) => {
+    const activeIndex = side.active_index ?? 0;
+
+    return monsters[activeIndex] ?? monsters[0] ?? null;
+};
+
+const transformPvpLog = (log = [], viewerId = null, opponentName = 'opponent') => {
+    return log.map((entry) => {
+        const actorId = entry.actor_user_id ?? null;
+        const action = entry.action ?? {};
+        const events = entry.events ?? [];
+        const damageEvent = events.find((event) => event.type === 'damage') || events[0] || {};
+        const actorLabel = actorId === viewerId ? 'you' : opponentName || 'opponent';
+
+        return {
+            actor: actorLabel,
+            type: action.type ?? damageEvent.type ?? 'action',
+            style: action.slot ?? action.style ?? null,
+            damage: damageEvent.amount ?? null,
+            multiplier: damageEvent?.multipliers?.type ?? damageEvent?.multipliers ?? null,
+        };
+    });
+};
+
 export function initWildBattle() {
     const container = document.getElementById('wild-battle-page');
 
@@ -138,6 +207,7 @@ export function initWildBattle() {
     const actionTabs = container.querySelectorAll('[data-action-tab]');
 
     const initial = parseInitialState();
+    const mode = container.dataset.mode || initial?.mode || 'wild';
 
     if (!initial) {
         return;
@@ -145,6 +215,7 @@ export function initWildBattle() {
 
     let battle = initial.battle || {};
     let ticket = initial.ticket || {};
+    let opponentName = battle?.wild?.name || 'opponent';
     let redirectTimeout = null;
 
     const setActionStatus = (message) => {
@@ -192,6 +263,10 @@ export function initWildBattle() {
     const applyState = (nextBattle = {}, nextTicket = {}) => {
         battle = nextBattle || battle;
         ticket = { ...ticket, ...nextTicket };
+
+        if (battle?.wild?.name) {
+            opponentName = battle.wild.name;
+        }
 
         const activeMonster = (battle.player_monsters || []).find((m) => m.id === battle.player_active_monster_id) ||
             (battle.player_monsters || [])[0];
@@ -324,7 +399,40 @@ export function initWildBattle() {
     if (window.Echo && userId) {
         const battleChannel = ticket?.id ? `battles.${ticket.id}` : null;
 
-        if (battleChannel) {
+        if (mode === 'pvp' && battleChannel) {
+            window.Echo.private(battleChannel).listen('.BattleUpdated', (payload) => {
+                if (!payload || `${payload.battle_id}` !== `${ticket.id}`) {
+                    return;
+                }
+
+                const nextState = (() => {
+                    const participants = payload.state?.participants || {};
+                    const participantIds = Object.keys(participants).map((id) => Number.parseInt(id, 10));
+                    const opponentId = participantIds.find((id) => id !== Number(userId)) ?? null;
+                    const viewerSide = participants[userId] || { monsters: [], active_index: 0 };
+                    const opponentSide = (opponentId && participants[opponentId]) || { monsters: [], active_index: 0 };
+                    const playerMonsters = normalizeMonsters(viewerSide.monsters || []);
+                    const opponentMonsters = normalizeMonsters(opponentSide.monsters || []);
+
+                    return {
+                        active: (payload.status ?? 'active') === 'active',
+                        resolved: (payload.status ?? 'active') !== 'active',
+                        turn: payload.state?.turn ?? 1,
+                        next_actor_id: payload.state?.next_actor_id ?? null,
+                        player_active_monster_id: resolveActiveId(viewerSide, playerMonsters),
+                        player_monsters: playerMonsters,
+                        wild: resolveActiveMonster(opponentSide, opponentMonsters),
+                        last_action_log: transformPvpLog(payload.state?.log || [], Number(userId), opponentName),
+                        wild_ai: false,
+                    };
+                })();
+
+                applyState(nextState, { status: payload.status || ticket.status });
+                setActionStatus('Live update received.');
+            });
+        }
+
+        if (mode === 'wild' && battleChannel) {
             window.Echo.private(battleChannel).listen('.BattleUpdated', (payload) => {
                 if (!payload || `${payload.battle_id}` !== `${ticket.id}`) {
                     return;
@@ -335,14 +443,16 @@ export function initWildBattle() {
             });
         }
 
-        window.Echo.private(`users.${userId}`).listen('.WildBattleUpdated', (payload) => {
-            if (!payload || `${payload.ticket_id}` !== `${ticket.id}`) {
-                return;
-            }
+        if (mode === 'wild') {
+            window.Echo.private(`users.${userId}`).listen('.WildBattleUpdated', (payload) => {
+                if (!payload || `${payload.ticket_id}` !== `${ticket.id}`) {
+                    return;
+                }
 
-            applyState(payload.battle || battle, { status: payload.status || ticket.status });
-            setActionStatus('Live update received.');
-        });
+                applyState(payload.battle || battle, { status: payload.status || ticket.status });
+                setActionStatus('Live update received.');
+            });
+        }
     }
 }
 

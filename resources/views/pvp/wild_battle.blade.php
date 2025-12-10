@@ -23,10 +23,11 @@
      data-run-url="{{ route('pvp.battles.wild.run', $battle) }}"
      data-encounters-url="{{ route('pvp.index') }}"
      data-user-id="{{ $viewer->id }}"
-     data-ticket-id="{{ $battle->id }}">
+     data-ticket-id="{{ $battle->id }}"
+     data-mode="pvp">
 
     <script type="application/json" data-wild-battle-state>
-        {!! json_encode($payload) !!}
+        {!! json_encode(array_merge($payload, ['mode' => 'pvp'])) !!}
     </script>
 
     <div class="bg-white shadow rounded-xl p-5 flex items-center justify-between">

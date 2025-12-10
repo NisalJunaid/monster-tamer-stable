@@ -19,7 +19,8 @@
      data-run-url="{{ route('encounters.battle.run', $ticket) }}"
      data-encounters-url="{{ route('encounters.index') }}"
      data-user-id="{{ auth()->id() }}"
-     data-ticket-id="{{ $ticket->id }}">
+     data-ticket-id="{{ $ticket->id }}"
+     data-mode="wild">
 
     <script type="application/json" data-wild-battle-state>
         {!! json_encode([
@@ -33,6 +34,7 @@
             ],
             'battle' => $battle,
             'user_id' => auth()->id(),
+            'mode' => 'wild',
         ]) !!}
     </script>
 
