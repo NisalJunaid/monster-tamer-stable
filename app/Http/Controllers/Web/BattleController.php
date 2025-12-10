@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Web;
 
 use App\Domain\Battle\BattleEngine;
 use App\Domain\Battle\BattleStateRedactor;
+use App\Domain\Pvp\BattleUiAdapter;
 use App\Domain\Pvp\PvpRankingService;
 use App\Events\BattleUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BattleActionRequest;
 use App\Models\Battle;
 use App\Models\BattleTurn;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -17,20 +19,24 @@ use Symfony\Component\HttpFoundation\Response;
 
 class BattleController extends Controller
 {
-    public function __construct(private readonly BattleEngine $engine, private readonly PvpRankingService $rankingService)
+    public function __construct(
+        private readonly BattleEngine $engine,
+        private readonly PvpRankingService $rankingService,
+        private readonly BattleUiAdapter $adapter,
+    )
     {
     }
 
     public function show(Request $request, Battle $battle)
     {
-        $this->assertParticipant($request, $battle);
+        $viewer = $this->assertParticipant($request, $battle);
 
         $battle->load(['turns', 'player1', 'player2', 'winner']);
-        $state = BattleStateRedactor::forViewer($battle->meta_json, $request->user()->id);
 
-        return view('battles.show', [
+        return view('pvp.wild_battle', [
             'battle' => $battle,
-            'state' => $state,
+            'viewer' => $viewer,
+            'initialPayload' => $this->buildWildPayload($battle, $viewer),
         ]);
     }
 
@@ -57,6 +63,26 @@ class BattleController extends Controller
             'state' => $state,
             'viewer_id' => $viewer->id,
         ]);
+    }
+
+    private function buildWildPayload(Battle $battle, User $viewer): array
+    {
+        $battle->loadMissing(['player1', 'player2']);
+        $wildState = $this->adapter->toWildUiState($battle, $viewer);
+        $opponent = $wildState['wild'] ?? [];
+
+        return [
+            'ticket' => [
+                'id' => $battle->id,
+                'status' => $battle->status,
+                'species' => [
+                    'name' => $opponent['name'] ?? 'Opponent',
+                    'level' => $opponent['level'] ?? null,
+                ],
+            ],
+            'battle' => $wildState,
+            'user_id' => $viewer->id,
+        ];
     }
 
     public function act(BattleActionRequest $request, Battle $battle): RedirectResponse
