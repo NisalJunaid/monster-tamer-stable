@@ -8,6 +8,7 @@ use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\BattleController as WebBattleController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\EncounterController as WebEncounterController;
+use App\Http\Controllers\Web\PvpBattleUiController;
 use App\Http\Controllers\Web\WildBattleController as WebWildBattleController;
 use App\Http\Controllers\Web\TeamController;
 use App\Http\Controllers\Web\PvpController as WebPvpController;
@@ -64,6 +65,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/pvp/fragment', [WebPvpController::class, 'fragment'])->name('pvp.fragment');
         Route::get('/pvp/status', [WebPvpController::class, 'status'])->name('pvp.status');
         Route::get('/pvp/battle-fragment/{battle}', [WebPvpController::class, 'battleFragment'])->name('pvp.battle_fragment');
+        Route::get('/pvp/battles/{battle}/wild', [PvpBattleUiController::class, 'showWildUi'])->name('pvp.battles.wild');
+        Route::post('/pvp/battles/{battle}/wild/move', [PvpBattleUiController::class, 'move'])->name('pvp.battles.wild.move');
+        Route::post('/pvp/battles/{battle}/wild/switch', [PvpBattleUiController::class, 'switchActive'])->name('pvp.battles.wild.switch');
+        Route::post('/pvp/battles/{battle}/wild/run', [PvpBattleUiController::class, 'run'])->name('pvp.battles.wild.run');
 
         Route::get('/battles/{battle}', [WebBattleController::class, 'show'])->name('battles.show');
         Route::get('/battles/{battle}/state', [WebBattleController::class, 'state'])->name('battles.state');

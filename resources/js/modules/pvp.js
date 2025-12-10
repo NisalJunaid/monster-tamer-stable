@@ -68,6 +68,8 @@ export async function refreshPvpPanel(battleId = null) {
             panel.replaceWith(newPanel);
             initMatchmakingPanel(newPanel);
             const battleContainer = newPanel.querySelector('[data-battle-live]');
+            const activeBattleId = newPanel.dataset.activeBattleId;
+            const battleUrlTemplate = newPanel.dataset.battleUrl;
             if (battleContainer) {
                 initBattleLive(newPanel);
 
@@ -78,6 +80,9 @@ export async function refreshPvpPanel(battleId = null) {
                     }
                     window.setTimeout(() => refreshPvpPanel(), 1500);
                 }
+            } else if (battleUrlTemplate && activeBattleId) {
+                await loadBattleUi(activeBattleId, newPanel);
+                return null;
             } else {
                 stopQueuePolling();
             }
