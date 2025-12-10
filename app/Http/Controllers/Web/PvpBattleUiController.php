@@ -192,6 +192,8 @@ class PvpBattleUiController extends Controller
         ];
 
         $log = [];
+        // PvP swaps reuse MonsterSwitchService with state rebuilt from meta_json participants; the target comes from
+        // request payload action['player_monster_id'].
         $result = $this->monsterSwitchService->switchPlayerMonster($switchState, (int) $action['player_monster_id'], $log, $actor->id);
         $newActiveId = $result['id'] ?? $switchState['player_active_monster_id'];
 
