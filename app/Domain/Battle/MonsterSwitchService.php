@@ -7,6 +7,9 @@ class MonsterSwitchService
     /**
      * Swap the player's active monster by validating the provided identifier against the
      * current player's monsters and updating the active slot. HP and status are left intact.
+     * Expects wild-style battle state with keys: player_monsters (each entry includes player_monster_id or id),
+     * player_active_monster_id, optional last_action_log, and optional turn; the provided ID should match
+     * a player_monster_id/int within player_monsters.
      */
     public function switchPlayerMonster(array &$state, int $playerMonsterId, array &$log, ?int $userId = null): array
     {
