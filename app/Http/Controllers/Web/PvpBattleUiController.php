@@ -160,6 +160,9 @@ class PvpBattleUiController extends Controller
             $this->rankingService->handleBattleCompletion($battle->fresh());
         }
 
+        $battle->refresh();
+
+        // After PvP switch, broadcast BattleUpdated so opponent sees the new active monster in real-time.
         broadcast(new BattleUpdated(
             battleId: $battle->id,
             state: $state,
