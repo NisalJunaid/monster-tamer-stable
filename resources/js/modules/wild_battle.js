@@ -324,8 +324,11 @@ export function initWildBattle() {
         if (playerHpBar) playerHpBar.style.width = `${playerHpPercent}%`;
         if (playerTeam) playerTeam.innerHTML = renderTeamList(playerMonsters, playerActiveId);
 
-        if (wildName) wildName.textContent = ticket.species?.name || wild.name || 'Wild';
-        if (wildLevel) wildLevel.textContent = `Level ${ticket.species?.level ?? battle?.wild?.level ?? '?'}`;
+        const wildDisplayName = wild?.name || ticket.species?.name || 'Wild';
+        const wildDisplayLevel = wild?.level ?? battle?.wild?.level ?? ticket.species?.level ?? '?';
+
+        if (wildName) wildName.textContent = wildDisplayName;
+        if (wildLevel) wildLevel.textContent = `Level ${wildDisplayLevel}`;
         if (wildStatus) wildStatus.textContent = wild.current_hp <= 0 ? 'Fainted' : 'Alert';
         if (wildHpText) wildHpText.textContent = `HP ${wild.current_hp ?? 0} / ${wild.max_hp ?? 0}`;
         if (wildHpBar) wildHpBar.style.width = `${wildHpPercent}%`;
