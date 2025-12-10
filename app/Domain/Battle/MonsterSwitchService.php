@@ -33,6 +33,9 @@ class MonsterSwitchService
                 }
 
                 if (array_key_exists('turn', $state)) {
+                    // Swapping in the PvP UI layer bumps the in-memory turn
+                    // counter for local state sequencing; database turn
+                    // numbers are derived when persisting the swap.
                     $state['turn'] = ($state['turn'] ?? 0) + 1;
                 }
 
