@@ -2,6 +2,7 @@
 
 namespace App\Domain\Encounters;
 
+use App\Domain\Battle\MonsterSwitchService;
 use App\Events\WildBattleUpdated;
 use App\Models\EncounterTicket;
 use App\Models\MonsterSpeciesStage;
@@ -16,7 +17,7 @@ class WildBattleService
 {
     private array $typeChart;
 
-    public function __construct()
+    public function __construct(private readonly MonsterSwitchService $monsterSwitchService)
     {
         $this->typeChart = TypeEffectiveness::query()
             ->get()
@@ -73,7 +74,7 @@ class WildBattleService
         $stateful = $this->ensureActiveBattle($user, $ticket);
         $log = [];
 
-        $this->switchActiveMonster($stateful['battle_state'], $playerMonsterId, $log);
+        $this->monsterSwitchService->switchPlayerMonster($stateful['battle_state'], $playerMonsterId, $log, $user->id);
         $ticket = $this->persistBattle($ticket, $stateful['battle_state']);
 
         if ($stateful['battle_state']['active']) {
@@ -360,30 +361,6 @@ class WildBattleService
         $state['turn']++;
 
         return $state;
-    }
-
-    private function switchActiveMonster(array &$state, int $monsterId, array &$log): void
-    {
-        foreach ($state['player_monsters'] as $monster) {
-            if ($monster['id'] === $monsterId) {
-                if ($monster['current_hp'] <= 0) {
-                    abort(400, 'Cannot switch to a fainted monster.');
-                }
-
-                $state['player_active_monster_id'] = $monsterId;
-                $state['last_action_log'][] = [
-                    'actor' => 'player',
-                    'type' => 'switch',
-                    'target_id' => $monsterId,
-                ];
-                $log[] = end($state['last_action_log']);
-                $state['turn']++;
-
-                return;
-            }
-        }
-
-        abort(404, 'Monster not found on your team.');
     }
 
     private function activeMonster(array $state): array
