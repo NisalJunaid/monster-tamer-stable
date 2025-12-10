@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Domain\Battle\BattleEngine;
 use App\Domain\Battle\BattleStateRedactor;
+use App\Domain\Battle\TurnNumberService;
 use App\Domain\Pvp\BattleUiAdapter;
 use App\Domain\Pvp\PvpRankingService;
 use App\Events\BattleUpdated;
@@ -23,6 +24,7 @@ class BattleController extends Controller
         private readonly BattleEngine $engine,
         private readonly PvpRankingService $rankingService,
         private readonly BattleUiAdapter $adapter,
+        private readonly TurnNumberService $turnNumberService,
     )
     {
     }
@@ -105,6 +107,9 @@ class BattleController extends Controller
             return back()->withErrors(['action' => $exception->getMessage()]);
         }
 
+        $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
+        $this->synchronizeLoggedTurn($state, $result, $turnNumber);
+
         $battle->update([
             'meta_json' => $state,
             'status' => $hasEnded ? 'completed' : 'active',
@@ -114,7 +119,7 @@ class BattleController extends Controller
 
         BattleTurn::query()->create([
             'battle_id' => $battle->id,
-            'turn_number' => $result['turn'],
+            'turn_number' => $turnNumber,
             'actor_user_id' => $actor->id,
             'action_json' => $request->validated(),
             'result_json' => $result,
@@ -133,6 +138,19 @@ class BattleController extends Controller
         ));
 
         return redirect()->route('battles.show', $battle)->with('status', 'Action submitted.');
+    }
+
+    private function synchronizeLoggedTurn(array &$state, array &$result, int $turnNumber): void
+    {
+        $result['turn'] = $turnNumber;
+
+        if (! empty($state['log'])) {
+            $lastIndex = array_key_last($state['log']);
+
+            if ($lastIndex !== null) {
+                $state['log'][$lastIndex]['turn'] = $turnNumber;
+            }
+        }
     }
 
     private function assertParticipant(Request $request, Battle $battle)
