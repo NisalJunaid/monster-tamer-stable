@@ -10,6 +10,7 @@ use App\Events\BattleUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Battle;
 use App\Models\BattleTurn;
+use App\Models\PlayerMonster;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -172,9 +173,28 @@ class PvpBattleUiController extends Controller
             throw new InvalidArgumentException('Monster not found on your team.');
         }
 
+        $ownedMonsters = PlayerMonster::query()
+            ->where('user_id', $actor->id)
+            ->orderByDesc('is_in_team')
+            ->orderBy('team_slot')
+            ->orderByDesc('level')
+            ->take(count($viewerSide['monsters'] ?? []))
+            ->get()
+            ->values();
+
         $playerMonsters = collect($viewerSide['monsters'] ?? [])
-            ->map(function (array $monster) {
-                $playerMonsterId = $monster['player_monster_id'] ?? $monster['id'] ?? null;
+            ->map(function (array $monster, int $index) use ($ownedMonsters) {
+                $playerMonsterId = $monster['player_monster_id']
+                    ?? $monster['id']
+                    ?? $monster['monster_instance_id']
+                    ?? $monster['instance_id']
+                    ?? null;
+
+                if ($playerMonsterId === null && $ownedMonsters->has($index)) {
+                    $playerMonsterId = $ownedMonsters[$index]->id;
+                }
+
+                $playerMonsterId = is_numeric($playerMonsterId) ? (int) $playerMonsterId : null;
 
                 return [
                     ...$monster,
@@ -194,6 +214,11 @@ class PvpBattleUiController extends Controller
             'turn' => $state['turn'] ?? 1,
             'last_action_log' => [],
         ];
+
+        \Log::info('PVP state before switch', [
+            'user_id' => $actor->id,
+            'player_monsters' => $wildLikeState['player_monsters'],
+        ]);
 
         $log = [];
         $result = $this->monsterSwitchService->switchPlayerMonster(
