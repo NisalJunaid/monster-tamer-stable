@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Battle\BattleEngine;
+use App\Domain\Battle\TurnNumberService;
 use App\Domain\Battle\BattleStateRedactor;
 use App\Domain\Pvp\PvpRankingService;
 use App\Http\Requests\BattleActionRequest;
@@ -18,7 +19,11 @@ use Symfony\Component\HttpFoundation\Response;
 
 class BattleController extends Controller
 {
-    public function __construct(private readonly BattleEngine $engine, private readonly PvpRankingService $rankingService)
+    public function __construct(
+        private readonly BattleEngine $engine,
+        private readonly PvpRankingService $rankingService,
+        private readonly TurnNumberService $turnNumberService,
+    )
     {
     }
 
@@ -77,6 +82,9 @@ class BattleController extends Controller
             abort(Response::HTTP_BAD_REQUEST, $exception->getMessage());
         }
 
+        $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
+        $this->synchronizeLoggedTurn($state, $result, $turnNumber);
+
         $battle->update([
             'meta_json' => $state,
             'status' => $hasEnded ? 'completed' : 'active',
@@ -86,7 +94,7 @@ class BattleController extends Controller
 
         BattleTurn::query()->create([
             'battle_id' => $battle->id,
-            'turn_number' => $result['turn'],
+            'turn_number' => $turnNumber,
             'actor_user_id' => $actor->id,
             'action_json' => $request->validated(),
             'result_json' => $result,
@@ -122,6 +130,19 @@ class BattleController extends Controller
         }
 
         return $party;
+    }
+
+    private function synchronizeLoggedTurn(array &$state, array &$result, int $turnNumber): void
+    {
+        $result['turn'] = $turnNumber;
+
+        if (! empty($state['log'])) {
+            $lastIndex = array_key_last($state['log']);
+
+            if ($lastIndex !== null) {
+                $state['log'][$lastIndex]['turn'] = $turnNumber;
+            }
+        }
     }
 
     private function serializeBattle(Battle $battle, ?int $viewerId = null): array

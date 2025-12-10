@@ -306,9 +306,11 @@ export function initWildBattle() {
             opponentName = battle.wild.name;
         }
 
-        const activeMonster = (battle.player_monsters || []).find((m) => m.player_monster_id === battle.player_active_monster_id) ||
-            (battle.player_monsters || []).find((m) => m.id === battle.player_active_monster_id) ||
-            (battle.player_monsters || [])[0];
+        const playerMonsters = battle.player?.monsters || battle.player_monsters || [];
+        const playerActiveId = battle.player?.active_monster_id ?? battle.player_active_monster_id;
+        const activeMonster = playerMonsters.find((m) => m.player_monster_id === playerActiveId)
+            || playerMonsters.find((m) => m.id === playerActiveId)
+            || playerMonsters[0];
         const wild = battle.wild || {};
         const opponentTeam = battle.opponent_monsters || [];
 
@@ -320,7 +322,7 @@ export function initWildBattle() {
         if (playerStatus) playerStatus.textContent = activeMonster?.current_hp > 0 ? 'Ready' : 'Fainted';
         if (playerHpText) playerHpText.textContent = `HP ${activeMonster?.current_hp ?? 0} / ${activeMonster?.max_hp ?? 0}`;
         if (playerHpBar) playerHpBar.style.width = `${playerHpPercent}%`;
-        if (playerTeam) playerTeam.innerHTML = renderTeamList(battle.player_monsters || [], battle.player_active_monster_id);
+        if (playerTeam) playerTeam.innerHTML = renderTeamList(playerMonsters, playerActiveId);
 
         if (wildName) wildName.textContent = ticket.species?.name || wild.name || 'Wild';
         if (wildLevel) wildLevel.textContent = `Level ${ticket.species?.level ?? battle?.wild?.level ?? '?'}`;
@@ -338,7 +340,7 @@ export function initWildBattle() {
 
         if (logEntries) logEntries.innerHTML = renderLog(battle.last_action_log || []);
         if (moveList) renderMoves(activeMonster);
-        if (switchList) switchList.innerHTML = renderSwitchList(battle.player_monsters || [], battle.player_active_monster_id);
+        if (switchList) switchList.innerHTML = renderSwitchList(playerMonsters, playerActiveId);
         if (turnIndicator) turnIndicator.textContent = (battle.active ?? true) ? 'Choose your move' : 'Battle resolved';
         if (statusLabel) statusLabel.textContent = `State: ${formatStatus(battle)}`;
         if (turnLabel) turnLabel.textContent = battle.turn ?? 1;
@@ -404,16 +406,16 @@ export function initWildBattle() {
             return;
         }
 
-        if (target instanceof HTMLElement && target.closest('[data-player-monster-id]')) {
-            const switchBtn = target.closest('[data-player-monster-id]');
-            const monsterId = Number.parseInt(switchBtn.dataset.playerMonsterId ?? '', 10);
+        if (target instanceof HTMLElement && target.closest('.js-switch-monster, [data-player-monster-id]')) {
+            const switchBtn = target.closest('.js-switch-monster, [data-player-monster-id]');
+            const selectedId = Number.parseInt(switchBtn.dataset.playerMonsterId ?? '', 10);
 
-            if (! Number.isInteger(monsterId)) {
+            if (! Number.isInteger(selectedId)) {
                 setActionStatus('Please select a valid monster.');
                 return;
             }
 
-            const payload = { player_monster_id: monsterId };
+            const payload = { player_monster_id: selectedId };
 
             submitAction(switchUrl, payload);
             return;
