@@ -39,17 +39,7 @@ class PvpController extends Controller
         if ($activeBattle) {
             $activeBattle->load(['player1', 'player2', 'winner']);
 
-            return view('pvp.battle_lobby', [
-                'battle' => $activeBattle,
-                'state' => $activeBattle->meta_json,
-                'queueEntry' => $queueEntry,
-                'latestBattle' => $latestBattle,
-                'pvpProfile' => $profile,
-                'searchTimeout' => LiveMatchmaker::SEARCH_TIMEOUT_SECONDS,
-                'currentWindow' => $this->matchmaker->windowForEntry($queueEntry),
-                'queueCount' => $queueCount,
-                'canQueueRanked' => $canQueueRanked,
-            ]);
+            return redirect()->route('pvp.battles.wild', $activeBattle);
         }
 
         return view('pvp.index', [
