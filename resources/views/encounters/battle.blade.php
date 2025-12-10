@@ -124,7 +124,21 @@
         </div>
         <div class="border rounded-lg p-4 bg-gray-50 hidden" data-action-panel="switch">
             <p class="text-sm text-gray-600 mb-3">Switch to another teammate:</p>
-            <div class="grid md:grid-cols-2 gap-2" data-switch-list></div>
+            <div class="grid md:grid-cols-2 gap-2" data-switch-list>
+                @foreach($playerMonsters as $monster)
+                    @php
+                        $switchId = $monster['player_monster_id'] ?? $monster['id'] ?? $monster['instance_id'] ?? null;
+                    @endphp
+                    @if($switchId !== null && $monster['current_hp'] > 0 && ($monster['id'] ?? $switchId) !== $activeId)
+                        <button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left"
+                                data-player-monster-id="{{ $switchId }}"
+                                data-switch-id="{{ $switchId }}">
+                            <div class="font-semibold">{{ $monster['name'] }}</div>
+                            <p class="text-sm text-gray-600">Lv {{ $monster['level'] }} • HP {{ $monster['current_hp'] }} / {{ $monster['max_hp'] }}</p>
+                        </button>
+                    @endif
+                @endforeach
+            </div>
         </div>
         <div class="border rounded-lg p-4 bg-gray-50 hidden" data-action-panel="tame">
             <p class="text-sm text-gray-600 mb-3">Try to tame the wild monster.</p>

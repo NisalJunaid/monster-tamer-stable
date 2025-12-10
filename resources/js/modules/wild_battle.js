@@ -58,9 +58,9 @@ const renderSwitchList = (monsters = [], activeId = null) => {
 
     return eligible
         .map((monster) => {
-            const switchId = monster.instance_id ?? monster.id;
+            const switchId = monster.player_monster_id ?? monster.id ?? monster.instance_id;
 
-            return `<button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left" data-switch-id="${switchId}">
+            return `<button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left" data-player-monster-id="${switchId}" data-switch-id="${switchId}">
                     <div class="font-semibold">${monster.name}</div>
                     <p class="text-sm text-gray-600">Lv ${monster.level} • HP ${monster.current_hp} / ${monster.max_hp}</p>
                 </button>`;
@@ -374,9 +374,12 @@ export function initWildBattle() {
             return;
         }
 
-        if (target instanceof HTMLElement && target.closest('[data-switch-id]')) {
-            const switchBtn = target.closest('[data-switch-id]');
-            const monsterId = Number.parseInt(switchBtn.dataset.switchId || '0', 10);
+        if (target instanceof HTMLElement && target.closest('[data-player-monster-id], [data-switch-id]')) {
+            const switchBtn = target.closest('[data-player-monster-id], [data-switch-id]');
+            const monsterId = Number.parseInt(
+                switchBtn.dataset.playerMonsterId || switchBtn.dataset.switchId || '0',
+                10,
+            );
             const payload = { type: 'swap', player_monster_id: monsterId };
 
             if (! monsterId) {
