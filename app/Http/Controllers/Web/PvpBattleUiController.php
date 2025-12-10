@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Domain\Battle\MonsterSwitchService;
 use App\Domain\Battle\BattleEngine;
 use App\Domain\Pvp\BattleUiAdapter;
 use App\Domain\Pvp\PvpRankingService;
@@ -21,6 +22,7 @@ class PvpBattleUiController extends Controller
         private readonly BattleEngine $engine,
         private readonly PvpRankingService $rankingService,
         private readonly BattleUiAdapter $adapter,
+        private readonly MonsterSwitchService $monsterSwitchService,
     ) {
     }
 
@@ -60,24 +62,14 @@ class PvpBattleUiController extends Controller
     public function switchActive(Request $request, Battle $battle): JsonResponse
     {
         $viewer = $this->assertParticipant($request, $battle);
-        // PvP switch entry point: accepts the client-provided monster identifier and forwards
-        // it to BattleEngine::swapActive, which searches battle meta for a matching
-        // MonsterInstance id on the viewer's participant record.
         $payload = $request->validate([
             'type' => ['nullable', 'in:swap'],
-            'player_monster_id' => ['nullable', 'integer'],
-            'monster_instance_id' => ['nullable', 'integer'],
+            'player_monster_id' => ['required', 'integer'],
         ]);
-
-        $monsterId = (int) ($payload['monster_instance_id'] ?? $payload['player_monster_id'] ?? 0);
-
-        if (! $monsterId) {
-            return response()->json(['message' => 'Please select a monster to switch to.'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
 
         return $this->applyAndRespond($battle, $viewer, [
             'type' => 'swap',
-            'monster_instance_id' => $monsterId,
+            'player_monster_id' => (int) $payload['player_monster_id'],
         ]);
     }
 
@@ -132,7 +124,11 @@ class PvpBattleUiController extends Controller
         }
 
         try {
-            [$state, $result, $hasEnded, $winnerId] = $this->engine->applyAction($battle, $actor->id, $action);
+            if ($action['type'] === 'swap') {
+                [$state, $result, $hasEnded, $winnerId] = $this->applySwap($battle, $actor, $action);
+            } else {
+                [$state, $result, $hasEnded, $winnerId] = $this->engine->applyAction($battle, $actor->id, $action);
+            }
         } catch (InvalidArgumentException $exception) {
             return response()->json(['message' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -165,6 +161,75 @@ class PvpBattleUiController extends Controller
         ));
 
         return response()->json($this->buildPayload($battle->fresh(), $actor));
+    }
+
+    private function applySwap(Battle $battle, User $actor, array $action): array
+    {
+        $state = $battle->meta_json ?? [];
+        $viewerSide = $state['participants'][$actor->id] ?? null;
+
+        if (! $viewerSide) {
+            throw new InvalidArgumentException('Monster not found on your team.');
+        }
+
+        $playerMonsters = collect($viewerSide['monsters'] ?? [])
+            ->map(function (array $monster) {
+                $playerMonsterId = $monster['player_monster_id'] ?? $monster['id'] ?? null;
+
+                return [
+                    ...$monster,
+                    'player_monster_id' => $playerMonsterId,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $switchState = [
+            'player_monsters' => $playerMonsters,
+            'player_active_monster_id' => $playerMonsters[$viewerSide['active_index'] ?? 0]['player_monster_id'] ?? null,
+            'turn' => $state['turn'] ?? 1,
+            'last_action_log' => [],
+        ];
+
+        $log = [];
+        $result = $this->monsterSwitchService->switchPlayerMonster($switchState, (int) $action['player_monster_id'], $log, $actor->id);
+        $newActiveId = $result['id'] ?? $switchState['player_active_monster_id'];
+
+        $targetIndex = null;
+
+        foreach ($playerMonsters as $index => $monster) {
+            if (($monster['player_monster_id'] ?? $monster['id']) === $newActiveId) {
+                $targetIndex = $index;
+                break;
+            }
+        }
+
+        if ($targetIndex === null) {
+            throw new InvalidArgumentException('Monster not found on your team.');
+        }
+
+        $viewerSide['monsters'] = $playerMonsters;
+        $viewerSide['active_index'] = $targetIndex;
+
+        $state['participants'][$actor->id] = $viewerSide;
+        $state['turn'] = $switchState['turn'] ?? ($state['turn'] ?? 1);
+        $state['next_actor_id'] = $this->opponentId($battle, $actor);
+        $state['log'][] = [
+            'turn' => $state['turn'] ?? 1,
+            'actor_user_id' => $actor->id,
+            'action' => [
+                'type' => 'swap',
+                'player_monster_id' => $newActiveId,
+            ],
+            'events' => [
+                [
+                    'type' => 'swap',
+                    'active_instance_id' => $viewerSide['monsters'][$targetIndex]['id'] ?? $newActiveId,
+                ],
+            ],
+        ];
+
+        return [$state, ['turn' => $state['turn'], 'events' => [['type' => 'swap']]], false, null];
     }
 
     private function buildPayload(Battle $battle, User $viewer): array

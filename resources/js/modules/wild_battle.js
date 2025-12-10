@@ -58,7 +58,7 @@ const renderSwitchList = (monsters = [], activeId = null) => {
 
     return eligible
         .map((monster) => {
-            const switchId = monster.id ?? monster.instance_id ?? monster.player_monster_id;
+            const switchId = monster.player_monster_id ?? monster.id ?? monster.instance_id;
             const playerMonsterId = monster.player_monster_id ?? switchId;
 
             return `<button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left" data-player-monster-id="${playerMonsterId}" data-monster-instance-id="${switchId}" data-switch-id="${switchId}">
@@ -129,11 +129,11 @@ const normalizeMonsters = (monsters = []) => {
     return monsters
         .map((monster, index) => {
             const instanceId =
-                monster.id ?? monster.instance_id ?? monster.monster_instance_id ?? monster.player_monster_id ?? index;
+                monster.player_monster_id ?? monster.id ?? monster.instance_id ?? monster.monster_instance_id ?? index;
             const playerMonsterId = monster.player_monster_id ?? instanceId;
 
             return {
-                id: instanceId,
+                id: playerMonsterId,
                 instance_id: instanceId,
                 player_monster_id: playerMonsterId,
                 name: monster.name ?? 'Unknown',
@@ -379,21 +379,14 @@ export function initWildBattle() {
 
         if (target instanceof HTMLElement && target.closest('[data-player-monster-id], [data-switch-id]')) {
             const switchBtn = target.closest('[data-player-monster-id], [data-switch-id]');
-            const preferredKey = mode === 'pvp' ? 'monsterInstanceId' : 'playerMonsterId';
-            const monsterId = Number.parseInt(
-                switchBtn.dataset[preferredKey] || switchBtn.dataset.playerMonsterId || switchBtn.dataset.switchId || '0',
-                10,
-            );
+            const monsterId = Number.parseInt(switchBtn.dataset.playerMonsterId || switchBtn.dataset.switchId || '0', 10);
 
             if (! monsterId) {
                 setActionStatus('Please select a valid monster.');
                 return;
             }
 
-            const payload =
-                mode === 'pvp'
-                    ? { type: 'swap', monster_instance_id: monsterId }
-                    : { type: 'swap', player_monster_id: monsterId };
+            const payload = { type: 'swap', player_monster_id: monsterId };
 
             submitAction(switchUrl, payload);
             return;

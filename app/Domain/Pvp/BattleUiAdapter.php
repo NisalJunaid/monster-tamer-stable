@@ -57,15 +57,16 @@ class BattleUiAdapter
                     ];
                 })->values()->all();
 
-                $instanceId = $monster['id']
+                $playerMonsterId = $monster['player_monster_id']
+                    ?? $monster['id']
                     ?? $monster['monster_instance_id']
-                    ?? $monster['player_monster_id']
                     ?? $index;
-                $instanceId = is_numeric($instanceId) ? (int) $instanceId : $index;
-                $playerMonsterId = $monster['player_monster_id'] ?? $instanceId;
+                $playerMonsterId = is_numeric($playerMonsterId) ? (int) $playerMonsterId : $index;
+                $instanceId = $monster['id'] ?? $monster['monster_instance_id'] ?? $playerMonsterId;
+                $instanceId = is_numeric($instanceId) ? (int) $instanceId : $playerMonsterId;
 
                 return [
-                    'id' => $instanceId,
+                    'id' => $playerMonsterId,
                     'instance_id' => $instanceId,
                     'player_monster_id' => is_numeric($playerMonsterId) ? (int) $playerMonsterId : $instanceId,
                     'name' => $monster['name'] ?? 'Unknown',
