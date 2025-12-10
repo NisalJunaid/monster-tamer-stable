@@ -184,37 +184,36 @@ class PvpBattleUiController extends Controller
             ->values()
             ->all();
 
-        $switchState = [
+        $activeIndex = $viewerSide['active_index'] ?? 0;
+        $activePlayerMonsterId = $playerMonsters[$activeIndex]['player_monster_id'] ?? null;
+
+        $wildLikeState = [
             'player_monsters' => $playerMonsters,
-            'player_active_monster_id' => $playerMonsters[$viewerSide['active_index'] ?? 0]['player_monster_id'] ?? null,
+            'player_active_monster_id' => $activePlayerMonsterId,
             'turn' => $state['turn'] ?? 1,
             'last_action_log' => [],
         ];
 
         $log = [];
-        // PvP swaps reuse MonsterSwitchService with state rebuilt from meta_json participants; the target comes from
-        // request payload action['player_monster_id'].
-        $result = $this->monsterSwitchService->switchPlayerMonster($switchState, (int) $action['player_monster_id'], $log, $actor->id);
-        $newActiveId = $result['id'] ?? $switchState['player_active_monster_id'];
+        $result = $this->monsterSwitchService->switchPlayerMonster(
+            $wildLikeState,
+            (int) $action['player_monster_id'],
+            $log,
+            $actor->id,
+        );
 
-        $targetIndex = null;
-
-        foreach ($playerMonsters as $index => $monster) {
-            if (($monster['player_monster_id'] ?? $monster['id']) === $newActiveId) {
-                $targetIndex = $index;
-                break;
-            }
-        }
+        $targetIndex = $result['index'] ?? null;
+        $newActiveId = $result['id'] ?? ($wildLikeState['player_active_monster_id'] ?? null);
 
         if ($targetIndex === null) {
             throw new InvalidArgumentException('Monster not found on your team.');
         }
 
-        $viewerSide['monsters'] = $playerMonsters;
+        $viewerSide['monsters'] = $wildLikeState['player_monsters'];
         $viewerSide['active_index'] = $targetIndex;
 
         $state['participants'][$actor->id] = $viewerSide;
-        $state['turn'] = $switchState['turn'] ?? ($state['turn'] ?? 1);
+        $state['turn'] = $wildLikeState['turn'] ?? ($state['turn'] ?? 1);
         $state['next_actor_id'] = $this->opponentId($battle, $actor);
         $state['log'][] = [
             'turn' => $state['turn'] ?? 1,
