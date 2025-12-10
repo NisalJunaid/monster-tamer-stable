@@ -57,6 +57,9 @@ class BattleUiAdapter
                     ];
                 })->values()->all();
 
+                // BattleEngine stores MonsterInstance::id on `id`; fall back to any
+                // legacy fields for safety, but the swap action will only accept
+                // the MonsterInstance identifier from the battle meta state.
                 $instanceId = $monster['id']
                     ?? $monster['monster_instance_id']
                     ?? $monster['player_monster_id']
