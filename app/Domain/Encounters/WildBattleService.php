@@ -345,7 +345,7 @@ class WildBattleService
 
         if ($playerMonster['current_hp'] <= 0) {
             $next = $this->findNextHealthyMonster($state['player_monsters']);
-            $state['player_active_monster_id'] = $next?['id'];
+              $state['player_active_monster_id'] = $next['id'] ?? null;
 
             if (! $next) {
                 $state['active'] = false;
