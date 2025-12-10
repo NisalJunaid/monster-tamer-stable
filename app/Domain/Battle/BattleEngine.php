@@ -61,6 +61,8 @@ class BattleEngine
             // The swap action expects the MonsterInstance::id stored on the battle
             // state as each monster's `id`; sending a different identifier will
             // trigger the "Monster not found on your team." validation below.
+            // Swaps update the in-memory state but do not directly write a
+            // battle_turns row; the turn is incremented later alongside moves.
             $this->swapActive($actorSide, $action['monster_instance_id']);
             $result['events'][] = [
                 'type' => 'swap',
@@ -77,6 +79,10 @@ class BattleEngine
                 $state['turn']++;
                 $state['next_actor_id'] = $opponentUserId;
 
+                // A blocked move still advances the turn counter in state; the
+                // controller persists the same $result['turn'] value to
+                // battle_turns without recomputing it from the database.
+
                 return [$state, $result, false, null];
             }
 
@@ -85,6 +91,9 @@ class BattleEngine
                 $state['rng_state'] = $rng->currentState();
                 $state['turn']++;
                 $state['next_actor_id'] = $opponentUserId;
+
+                // The database turn_number insert also relies on this turn
+                // value from state, even when the move does no damage.
 
                 return [$state, $result, false, null];
             }
@@ -115,6 +124,9 @@ class BattleEngine
         $hasEnded = $this->checkBattleEnd($actorSide, $opponentSide, $result, $winnerId);
 
         $state['rng_state'] = $rng->currentState();
+        // Every action (swap or move) increments the shared turn counter here;
+        // controllers persist the pre-increment $result['turn'] value as the
+        // battle_turns.turn_number record for this action.
         $state['turn']++;
         $state['next_actor_id'] = $opponentUserId;
         $state['log'][] = $result;
