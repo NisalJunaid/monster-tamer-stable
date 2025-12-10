@@ -52,10 +52,9 @@ const moveOptions = (activeMonster = null) => {
 
 const renderSwitchList = (monsters = [], activeId = null) => {
     const normalizeMonsterId = (monster) => {
-        const candidate =
-            monster.player_monster_id ?? monster.id ?? monster.instance_id ?? monster.monster_instance_id ?? null;
+        const candidate = Number.parseInt(monster.player_monster_id ?? '', 10);
 
-        return Number.isFinite(Number(candidate)) ? Number(candidate) : null;
+        return Number.isInteger(candidate) ? candidate : null;
     };
 
     const normalizedActiveId =
@@ -151,14 +150,17 @@ const normalizeMoves = (moves = []) => {
 
 const normalizeMonsters = (monsters = []) => {
     return monsters
-        .map((monster, index) => {
-            const instanceId =
-                monster.player_monster_id ?? monster.id ?? monster.instance_id ?? monster.monster_instance_id ?? index;
-            const playerMonsterId = monster.player_monster_id ?? instanceId;
+        .map((monster) => {
+            const resolvedIdRaw = monster.player_monster_id ?? monster.id ?? monster.instance_id ?? monster.monster_instance_id;
+            const resolvedId = Number.parseInt(resolvedIdRaw ?? '', 10);
+            const playerMonsterId = Number.isInteger(resolvedId) ? resolvedId : null;
+            const instanceRaw = monster.instance_id ?? monster.monster_instance_id ?? monster.id ?? resolvedIdRaw ?? '';
+            const parsedInstanceId = Number.parseInt(instanceRaw, 10);
+            const instanceId = Number.isInteger(parsedInstanceId) ? parsedInstanceId : playerMonsterId;
 
             return {
-                id: playerMonsterId,
-                instance_id: instanceId,
+                id: playerMonsterId ?? instanceId ?? null,
+                instance_id: instanceId ?? playerMonsterId ?? null,
                 player_monster_id: playerMonsterId,
                 name: monster.name ?? 'Unknown',
                 level: monster.level ?? null,

@@ -149,7 +149,7 @@
             <div class="grid md:grid-cols-2 gap-2" data-switch-list>
                 @foreach($playerMonsters as $monster)
                     @php
-                        $switchId = $monster['player_monster_id'] ?? $monster['id'] ?? $monster['instance_id'] ?? null;
+                        $switchId = $monster['player_monster_id'] ?? null;
                         $isHealthy = ($monster['current_hp'] ?? 0) > 0;
                     @endphp
                     @if($switchId !== null && $isHealthy && $switchId !== $activeId)
