@@ -37,6 +37,13 @@
         margin-left: 6px;
     }
 </style>
+@php
+    $livePlayers = [
+        $battle->player1_id => $battle->player1?->name ?? 'Player '.$battle->player1_id,
+        $battle->player2_id => $battle->player2?->name ?? 'Player '.$battle->player2_id,
+    ];
+    $liveState = $battle->meta_json ?? [];
+@endphp
 <div id="wild-battle-page"
      class="space-y-4"
      data-move-url="{{ route('pvp.battles.wild.move', $battle) }}"
@@ -46,6 +53,7 @@
      data-encounters-url="{{ route('pvp.index') }}"
      data-user-id="{{ $viewer->id }}"
      data-ticket-id="{{ $battle->id }}"
+     data-battle-id="{{ $battle->id }}"
      data-mode="pvp">
 
     <script type="application/json" data-wild-battle-state>
@@ -185,5 +193,27 @@
             @endforelse
         </div>
     </div>
+</div>
+
+<div class="hidden" data-battle-live
+     data-battle-id="{{ $battle->id }}"
+     data-user-id="{{ $viewer->id }}">
+    {{-- Hidden listener container: reuse battle.js socket setup so both PvP opponents subscribe to BattleUpdated for this battle. --}}
+    <script type="application/json" data-battle-initial-state>
+        {!! json_encode([
+            'battle' => [
+                'id' => $battle->id,
+                'status' => $battle->status,
+                'seed' => $battle->seed,
+                'mode' => $liveState['mode'] ?? 'pvp',
+                'player1_id' => $battle->player1_id,
+                'player2_id' => $battle->player2_id,
+                'winner_user_id' => $battle->winner_user_id,
+            ],
+            'players' => $livePlayers,
+            'state' => $liveState,
+            'viewer_id' => $viewer->id,
+        ]) !!}
+    </script>
 </div>
 @endsection
