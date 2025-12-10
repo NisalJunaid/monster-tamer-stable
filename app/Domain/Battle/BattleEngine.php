@@ -79,9 +79,8 @@ class BattleEngine
                 $state['turn']++;
                 $state['next_actor_id'] = $opponentUserId;
 
-                // A blocked move still advances the turn counter in state; the
-                // controller persists the same $result['turn'] value to
-                // battle_turns without recomputing it from the database.
+                // A blocked move still advances the in-memory turn counter;
+                // database turn_number values are resolved when persisting.
 
                 return [$state, $result, false, null];
             }
@@ -92,8 +91,8 @@ class BattleEngine
                 $state['turn']++;
                 $state['next_actor_id'] = $opponentUserId;
 
-                // The database turn_number insert also relies on this turn
-                // value from state, even when the move does no damage.
+                // The state turn counter still advances even when the move
+                // does no damage; persistence resolves turn_number separately.
 
                 return [$state, $result, false, null];
             }
@@ -125,8 +124,8 @@ class BattleEngine
 
         $state['rng_state'] = $rng->currentState();
         // Every action (swap or move) increments the shared turn counter here;
-        // controllers persist the pre-increment $result['turn'] value as the
-        // battle_turns.turn_number record for this action.
+        // controllers resolve the persisted battle_turns.turn_number via a
+        // helper that inspects the database rather than trusting state.
         $state['turn']++;
         $state['next_actor_id'] = $opponentUserId;
         $state['log'][] = $result;

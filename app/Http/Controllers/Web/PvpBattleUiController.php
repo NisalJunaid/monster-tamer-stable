@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Domain\Battle\MonsterSwitchService;
 use App\Domain\Battle\BattleEngine;
+use App\Domain\Battle\TurnNumberService;
 use App\Domain\Pvp\BattleUiAdapter;
 use App\Domain\Pvp\PvpRankingService;
 use App\Events\BattleUpdated;
@@ -24,6 +25,7 @@ class PvpBattleUiController extends Controller
         private readonly PvpRankingService $rankingService,
         private readonly BattleUiAdapter $adapter,
         private readonly MonsterSwitchService $monsterSwitchService,
+        private readonly TurnNumberService $turnNumberService,
     ) {
     }
 
@@ -134,6 +136,9 @@ class PvpBattleUiController extends Controller
             return response()->json(['message' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
+        $this->synchronizeLoggedTurn($state, $result, $turnNumber);
+
         $battle->update([
             'meta_json' => $state,
             'status' => $hasEnded ? 'completed' : 'active',
@@ -145,7 +150,7 @@ class PvpBattleUiController extends Controller
         // output or swap state) rather than recomputing the next turn in SQL.
         BattleTurn::query()->create([
             'battle_id' => $battle->id,
-            'turn_number' => $result['turn'] ?? 0,
+            'turn_number' => $turnNumber,
             'actor_user_id' => $actor->id,
             'action_json' => $action,
             'result_json' => $result,
@@ -164,6 +169,19 @@ class PvpBattleUiController extends Controller
         ));
 
         return response()->json($this->buildPayload($battle->fresh(), $actor));
+    }
+
+    private function synchronizeLoggedTurn(array &$state, array &$result, int $turnNumber): void
+    {
+        $result['turn'] = $turnNumber;
+
+        if (! empty($state['log'])) {
+            $lastIndex = array_key_last($state['log']);
+
+            if ($lastIndex !== null) {
+                $state['log'][$lastIndex]['turn'] = $turnNumber;
+            }
+        }
     }
 
     private function applySwap(Battle $battle, User $actor, array $action): array
