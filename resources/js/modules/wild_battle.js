@@ -125,7 +125,7 @@ const normalizeMoves = (moves = []) => {
 const normalizeMonsters = (monsters = []) => {
     return monsters
         .map((monster, index) => ({
-            id: monster.id ?? index,
+            id: monster.id ?? monster.monster_instance_id ?? monster.player_monster_id ?? index,
             name: monster.name ?? 'Unknown',
             level: monster.level ?? null,
             types: monster.types ?? [],

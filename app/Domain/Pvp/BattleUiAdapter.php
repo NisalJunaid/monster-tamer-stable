@@ -57,8 +57,13 @@ class BattleUiAdapter
                     ];
                 })->values()->all();
 
+                $id = $monster['id']
+                    ?? $monster['monster_instance_id']
+                    ?? $monster['player_monster_id']
+                    ?? $index;
+
                 return [
-                    'id' => $monster['id'] ?? $index,
+                    'id' => $id,
                     'name' => $monster['name'] ?? 'Unknown',
                     'level' => $monster['level'] ?? null,
                     'types' => $monster['types'] ?? [],
