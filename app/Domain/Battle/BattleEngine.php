@@ -143,6 +143,7 @@ class BattleEngine
     {
         return [
             'id' => 0,
+            'player_monster_id' => 0,
             'level' => 3,
             'name' => 'Street Brawler',
             'types' => [],
@@ -219,6 +220,7 @@ class BattleEngine
 
         return [
             'id' => $instance->id,
+            'player_monster_id' => $instance->id,
             'level' => $instance->level,
             'name' => $instance->nickname ?: $stage->name,
             'types' => array_values(array_filter([$species->primary_type_id, $species->secondary_type_id])),
