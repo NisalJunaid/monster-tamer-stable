@@ -262,8 +262,31 @@ class PvpBattleUiController extends Controller
     private function buildPayload(Battle $battle, User $viewer): array
     {
         $battle->loadMissing(['player1', 'player2']);
+        $state = $battle->meta_json ?? [];
+        $participants = $state['participants'] ?? [];
+
+        $opponentUser = $battle->player1_id === $viewer->id ? $battle->player2 : $battle->player1;
+        $viewerSide = $participants[$viewer->id] ?? ['monsters' => [], 'active_index' => 0];
+        $opponentSide = $opponentUser ? ($participants[$opponentUser->id] ?? ['monsters' => [], 'active_index' => 0]) : ['monsters' => [], 'active_index' => 0];
+
+        $viewerSide['monsters'] = $this->hydrateParticipantMonsters($viewerSide['monsters'] ?? [], $viewer);
+
+        if ($opponentUser) {
+            $opponentSide['monsters'] = $this->hydrateParticipantMonsters($opponentSide['monsters'] ?? [], $opponentUser);
+            $state['participants'][$opponentUser->id] = $opponentSide;
+        }
+
+        $state['participants'][$viewer->id] = $viewerSide;
+        $battle->setAttribute('meta_json', $state);
+
         $wildState = $this->adapter->toWildUiState($battle, $viewer);
         $opponent = $wildState['wild'] ?? [];
+
+        \Log::info('PVP UI state for viewer', [
+            'user_id' => $viewer->id,
+            'player_monster_ids' => array_column($wildState['player_monsters'] ?? [], 'player_monster_id'),
+            'opponent_monster_ids' => array_column($wildState['opponent_monsters'] ?? [], 'player_monster_id'),
+        ]);
 
         return [
             'ticket' => [
@@ -293,5 +316,41 @@ class PvpBattleUiController extends Controller
     private function opponentId(Battle $battle, User $viewer): int
     {
         return $battle->player1_id === $viewer->id ? $battle->player2_id : $battle->player1_id;
+    }
+
+    private function hydrateParticipantMonsters(array $monsters, User $owner): array
+    {
+        $ownedMonsters = PlayerMonster::query()
+            ->where('user_id', $owner->id)
+            ->orderByDesc('is_in_team')
+            ->orderBy('team_slot')
+            ->orderByDesc('level')
+            ->take(count($monsters))
+            ->get()
+            ->values();
+
+        return collect($monsters)
+            ->map(function (array $monster, int $index) use ($ownedMonsters) {
+                $playerMonsterId = $monster['player_monster_id']
+                    ?? $monster['id']
+                    ?? $monster['monster_instance_id']
+                    ?? $monster['instance_id']
+                    ?? null;
+
+                if ($playerMonsterId === null && $ownedMonsters->has($index)) {
+                    $playerMonsterId = $ownedMonsters[$index]->id;
+                }
+
+                $playerMonsterId = is_numeric($playerMonsterId) ? (int) $playerMonsterId : null;
+
+                return [
+                    ...$monster,
+                    'id' => $monster['id'] ?? $playerMonsterId ?? $monster['instance_id'] ?? $monster['monster_instance_id'] ?? null,
+                    'instance_id' => $monster['instance_id'] ?? $monster['monster_instance_id'] ?? $monster['id'] ?? $playerMonsterId,
+                    'player_monster_id' => $playerMonsterId,
+                ];
+            })
+            ->values()
+            ->all();
     }
 }
