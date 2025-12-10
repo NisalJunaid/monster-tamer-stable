@@ -141,6 +141,8 @@ class PvpBattleUiController extends Controller
             'ended_at' => $hasEnded ? now() : null,
         ]);
 
+        // turn_number is pulled from the in-memory result payload (engine move
+        // output or swap state) rather than recomputing the next turn in SQL.
         BattleTurn::query()->create([
             'battle_id' => $battle->id,
             'turn_number' => $result['turn'] ?? 0,
@@ -239,6 +241,9 @@ class PvpBattleUiController extends Controller
         $viewerSide['active_index'] = $targetIndex;
 
         $state['participants'][$actor->id] = $viewerSide;
+        // MonsterSwitchService increments the wild-like state's turn counter;
+        // that value is copied back here so the switch shares the same turn
+        // numbering the database insert will later use.
         $state['turn'] = $wildLikeState['turn'] ?? ($state['turn'] ?? 1);
         $state['next_actor_id'] = $this->opponentId($battle, $actor);
         $state['log'][] = [

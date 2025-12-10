@@ -84,6 +84,9 @@ class BattleController extends Controller
             'ended_at' => $hasEnded ? now() : null,
         ]);
 
+        // turn_number comes directly from the engine's $result['turn'] (the
+        // pre-increment state value) rather than re-querying the database for
+        // the next sequence number.
         BattleTurn::query()->create([
             'battle_id' => $battle->id,
             'turn_number' => $result['turn'],
