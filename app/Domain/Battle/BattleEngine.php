@@ -58,6 +58,9 @@ class BattleEngine
         }
 
         if ($action['type'] === 'swap') {
+            // The swap action expects the MonsterInstance::id stored on the battle
+            // state as each monster's `id`; sending a different identifier will
+            // trigger the "Monster not found on your team." validation below.
             $this->swapActive($actorSide, $action['monster_instance_id']);
             $result['events'][] = [
                 'type' => 'swap',
