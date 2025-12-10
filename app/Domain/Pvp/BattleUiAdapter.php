@@ -57,20 +57,17 @@ class BattleUiAdapter
                     ];
                 })->values()->all();
 
-                // PvP swaps expect the PlayerMonster identifier persisted on the
-                // battle meta. Prefer the explicit player_monster_id when present
-                // and fall back to the stored monster id (which is seeded from the
-                // same PlayerMonster primary key during initialization).
-                $instanceId = $monster['player_monster_id']
-                    ?? $monster['id']
+                $instanceId = $monster['id']
                     ?? $monster['monster_instance_id']
+                    ?? $monster['player_monster_id']
                     ?? $index;
                 $instanceId = is_numeric($instanceId) ? (int) $instanceId : $index;
+                $playerMonsterId = $monster['player_monster_id'] ?? $instanceId;
 
                 return [
                     'id' => $instanceId,
                     'instance_id' => $instanceId,
-                    'player_monster_id' => $instanceId,
+                    'player_monster_id' => is_numeric($playerMonsterId) ? (int) $playerMonsterId : $instanceId,
                     'name' => $monster['name'] ?? 'Unknown',
                     'level' => $monster['level'] ?? null,
                     'types' => $monster['types'] ?? [],
