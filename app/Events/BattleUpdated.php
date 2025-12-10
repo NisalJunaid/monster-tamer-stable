@@ -29,6 +29,7 @@ class BattleUpdated implements ShouldBroadcastNow
 
     public function broadcastOn(): Channel
     {
+        // BattleUpdated broadcasts on private channel "battles.{id}" with battle id, status, next_actor_id, winner, and state payload
         return new PrivateChannel('battles.'.$this->battleId);
     }
 

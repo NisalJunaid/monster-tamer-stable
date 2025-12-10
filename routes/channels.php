@@ -23,6 +23,7 @@ Broadcast::channel('users.{id}', function ($user, $id) {
 });
 
 Broadcast::channel('battles.{id}', function ($user, $id) {
+    // PvP authorization: only battle participants (player1 or player2) may subscribe to battles.{id}
     return Battle::query()
         ->where('id', $id)
         ->where(function ($query) use ($user) {

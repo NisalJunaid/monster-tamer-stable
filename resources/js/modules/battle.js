@@ -566,6 +566,7 @@ export function initBattleLive(root = document) {
             });
         }
 
+        // battle.js: listens to BattleUpdated on "battles.{id}" and updates UI with new state
         channel.listen('.BattleUpdated', (payload) => {
             applyUpdate(payload, { fromEvent: true });
         });
