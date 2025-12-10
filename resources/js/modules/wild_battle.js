@@ -200,6 +200,7 @@ export function initWildBattle() {
     const wildStatus = container.querySelector('[data-wild-status]');
     const wildHpText = container.querySelector('[data-wild-hp-text]');
     const wildHpBar = container.querySelector('[data-wild-hp-bar]');
+    const opponentTeamDots = container.querySelector('[data-opponent-team-dots-list]');
     const logEntries = container.querySelector('[data-log-entries]');
     const moveList = container.querySelector('[data-move-list]');
     const switchList = container.querySelector('[data-switch-list]');
@@ -271,6 +272,7 @@ export function initWildBattle() {
         const activeMonster = (battle.player_monsters || []).find((m) => m.id === battle.player_active_monster_id) ||
             (battle.player_monsters || [])[0];
         const wild = battle.wild || {};
+        const opponentTeam = battle.opponent_monsters || [];
 
         const playerHpPercent = clampPercent(activeMonster?.current_hp ?? 0, activeMonster?.max_hp ?? 1);
         const wildHpPercent = clampPercent(wild.current_hp ?? 0, wild.max_hp ?? 1);
@@ -287,6 +289,14 @@ export function initWildBattle() {
         if (wildStatus) wildStatus.textContent = wild.current_hp <= 0 ? 'Fainted' : 'Alert';
         if (wildHpText) wildHpText.textContent = `HP ${wild.current_hp ?? 0} / ${wild.max_hp ?? 0}`;
         if (wildHpBar) wildHpBar.style.width = `${wildHpPercent}%`;
+
+        if (opponentTeamDots) {
+            const aliveTeam = (opponentTeam || []).filter((monster) => (monster?.current_hp ?? 0) > 0);
+
+            opponentTeamDots.innerHTML = aliveTeam
+                .map(() => '<span class="team-dot"></span>')
+                .join('') || '<span class="text-xs text-gray-500">No conscious monsters</span>';
+        }
 
         if (logEntries) logEntries.innerHTML = renderLog(battle.last_action_log || []);
         if (moveList) renderMoves(activeMonster);
@@ -421,6 +431,7 @@ export function initWildBattle() {
                         next_actor_id: payload.state?.next_actor_id ?? null,
                         player_active_monster_id: resolveActiveId(viewerSide, playerMonsters),
                         player_monsters: playerMonsters,
+                        opponent_monsters: opponentMonsters,
                         wild: resolveActiveMonster(opponentSide, opponentMonsters),
                         last_action_log: transformPvpLog(payload.state?.log || [], Number(userId), opponentName),
                         wild_ai: false,

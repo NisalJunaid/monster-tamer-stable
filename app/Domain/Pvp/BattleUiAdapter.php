@@ -31,6 +31,7 @@ class BattleUiAdapter
             'next_actor_id' => $state['next_actor_id'] ?? null,
             'player_active_monster_id' => $playerActiveId,
             'player_monsters' => $playerMonsters,
+            'opponent_monsters' => $opponentMonsters,
             'wild' => $opponentActive,
             'last_action_log' => $this->transformLog($state['log'] ?? [], $viewer, $battle),
             'wild_ai' => false,

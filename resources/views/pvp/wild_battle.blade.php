@@ -9,12 +9,27 @@
     $activeId = $battleState['player_active_monster_id'] ?? null;
     $activeMonster = collect($playerMonsters)->firstWhere('id', $activeId) ?? $playerMonsters[0] ?? null;
     $opponent = $battleState['wild'] ?? null;
+    $opponentMonsters = $battleState['opponent_monsters'] ?? [];
+    $opponentAliveCount = collect($opponentMonsters)->filter(fn ($monster) => ($monster['current_hp'] ?? 0) > 0)->count();
 
     $hpPercent = $activeMonster ? max(0, min(100, (int) floor(($activeMonster['current_hp'] / max(1, $activeMonster['max_hp'])) * 100))) : 0;
     $opponentHpPercent = $opponent ? max(0, min(100, (int) floor(($opponent['current_hp'] / max(1, $opponent['max_hp'])) * 100))) : 0;
 @endphp
 
 @section('content')
+<style>
+    .team-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 9999px;
+        background-color: #94a3b8;
+    }
+
+    .team-dot + .team-dot {
+        margin-left: 6px;
+    }
+</style>
 <div id="wild-battle-page"
      class="space-y-4"
      data-move-url="{{ route('pvp.battles.wild.move', $battle) }}"
@@ -88,6 +103,18 @@
             </div>
             <div class="mt-2 text-sm text-gray-600" data-wild-description>
                 PvP opponent in battle.
+            </div>
+            <div class="mt-3 flex items-center gap-2" data-opponent-team-dots>
+                <span class="text-xs uppercase tracking-wide text-gray-500">Team</span>
+                <div class="flex items-center" data-opponent-team-dots-list>
+                    @if($opponentAliveCount > 0)
+                        @for($i = 0; $i < $opponentAliveCount; $i++)
+                            <span class="team-dot"></span>
+                        @endfor
+                    @else
+                        <span class="text-xs text-gray-500">No conscious monsters</span>
+                    @endif
+                </div>
             </div>
         </div>
     </div>
