@@ -5,8 +5,11 @@
     $battleState = $payload['battle'] ?? [];
     $ticket = $payload['ticket'] ?? [];
 
-    $playerMonsters = $battleState['player_monsters'] ?? [];
-    $activeId = $battleState['player_active_monster_id'] ?? ($playerMonsters[0]['player_monster_id'] ?? $playerMonsters[0]['id'] ?? null);
+    $playerState = $battleState['player'] ?? [];
+    $playerMonsters = $playerState['monsters'] ?? $battleState['player_monsters'] ?? [];
+    $activeId = $playerState['active_monster_id']
+        ?? $battleState['player_active_monster_id']
+        ?? ($playerMonsters[0]['player_monster_id'] ?? $playerMonsters[0]['id'] ?? null);
     $activeMonster = collect($playerMonsters)
         ->firstWhere('player_monster_id', $activeId)
         ?? collect($playerMonsters)->firstWhere('id', $activeId)
@@ -153,7 +156,7 @@
                         $isHealthy = ($monster['current_hp'] ?? 0) > 0;
                     @endphp
                     @if($switchId !== null && $isHealthy && $switchId !== $activeId)
-                        <button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left"
+                        <button class="js-switch-monster px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left"
                                 data-player-monster-id="{{ $switchId }}">
                             <div class="font-semibold">{{ $monster['name'] }}</div>
                             <p class="text-sm text-gray-600">Lv {{ $monster['level'] }} • HP {{ $monster['current_hp'] }} / {{ $monster['max_hp'] }}</p>
