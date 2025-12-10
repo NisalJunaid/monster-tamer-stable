@@ -354,6 +354,8 @@ export function initWildBattle() {
         if (statusLabel) statusLabel.textContent = `State: ${formatStatus(battle)}`;
         if (turnLabel) turnLabel.textContent = battle.turn ?? 1;
 
+        wireBattleSounds(container);
+
         checkResolution();
     };
 
