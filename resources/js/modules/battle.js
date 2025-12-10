@@ -7,8 +7,13 @@ function getAudio(id) {
     return el && typeof el.play === 'function' ? el : null;
 }
 
-const mainClickSound = getAudio('battle-click-main') || getAudio('battle-click-sound') || null;
-const moveClickSound = getAudio('battle-click-move') || mainClickSound;
+let mainClickSound = null;
+let moveClickSound = null;
+
+function initBattleSounds() {
+    mainClickSound = getAudio('battle-click-main') || getAudio('battle-click-sound') || null;
+    moveClickSound = getAudio('battle-click-move') || mainClickSound;
+}
 
 function playSound(audioEl) {
     if (!audioEl) return;
@@ -16,28 +21,33 @@ function playSound(audioEl) {
         audioEl.currentTime = 0;
         audioEl.play();
     } catch (e) {
-        // Ignore autoplay or gesture-related errors
+        // ignore autoplay/gesture errors
     }
 }
 
 export function wireBattleSounds(root) {
     if (!root) return;
 
-    root.querySelectorAll('.js-battle-main-action').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            playSound(mainClickSound);
-        });
-    });
+    initBattleSounds();
 
-    root.querySelectorAll('.js-battle-move').forEach((btn) => {
-        btn.addEventListener('click', () => {
+    root.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!target) return;
+
+        if (target.closest('.js-battle-main-action')) {
+            playSound(mainClickSound);
+            return;
+        }
+
+        const moveBtn = target.closest('.js-battle-move');
+        if (moveBtn) {
             playSound(moveClickSound);
 
-            btn.classList.add('is-pressed');
+            moveBtn.classList.add('is-pressed');
             setTimeout(() => {
-                btn.classList.remove('is-pressed');
+                moveBtn.classList.remove('is-pressed');
             }, 120);
-        });
+        }
     });
 }
 
@@ -295,6 +305,11 @@ export function initBattleLive(root = document) {
     const initial = parseInitialState(container);
     if (!initial) {
         return;
+    }
+
+    if (!container.dataset.soundsBound) {
+        wireBattleSounds(container);
+        container.dataset.soundsBound = '1';
     }
 
     let battleState = initial.state || {};

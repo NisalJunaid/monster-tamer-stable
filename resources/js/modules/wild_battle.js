@@ -252,6 +252,11 @@ export function initWildBattle() {
         return;
     }
 
+    if (!container.dataset.soundsBound) {
+        wireBattleSounds(container);
+        container.dataset.soundsBound = '1';
+    }
+
     let battle = initial.battle || {};
     let ticket = initial.ticket || {};
     let opponentName = battle?.wild?.name || 'opponent';
