@@ -39,12 +39,13 @@ const moveOptions = (activeMonster = null) => {
             label: move.name,
             helper: move.description || move.type || 'Move',
             style: move.style || 'monster',
+            slot: move.slot || Number.parseInt(move.style, 10) || null,
         }));
     }
 
     return [
-        { key: 'monster', label: 'Monster Technique', helper: 'Elemental strike', style: 'monster' },
-        { key: 'martial', label: 'Martial Arts', helper: 'Physical combo', style: 'martial' },
+        { key: 'monster', label: 'Monster Technique', helper: 'Elemental strike', style: 'monster', slot: 1 },
+        { key: 'martial', label: 'Martial Arts', helper: 'Physical combo', style: 'martial', slot: 2 },
     ];
 };
 
@@ -178,7 +179,7 @@ export function initWildBattle() {
 
         moveList.innerHTML = moves
             .map(
-                (move) => `<button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400" data-move-style="${move.style}" data-move-key="${move.key}">
+                (move) => `<button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400" data-move-style="${move.style}" data-move-slot="${move.slot || ''}" data-move-key="${move.key}">
                         <div class="flex items-center justify-between">
                             <span class="font-semibold">${move.label}</span>
                             <span class="text-xs text-gray-500">${move.helper}</span>
@@ -267,14 +268,30 @@ export function initWildBattle() {
         if (target instanceof HTMLElement && target.closest('[data-move-style]')) {
             const moveBtn = target.closest('[data-move-style]');
             const style = moveBtn.dataset.moveStyle;
-            submitAction(moveUrl, { style });
+            const slot = Number.parseInt(moveBtn.dataset.moveSlot || '0', 10);
+            const payload = { type: 'move' };
+
+            if (Number.isInteger(slot) && slot > 0) {
+                payload.slot = slot;
+            } else if (style) {
+                payload.style = style;
+            }
+
+            submitAction(moveUrl, payload);
             return;
         }
 
         if (target instanceof HTMLElement && target.closest('[data-switch-id]')) {
             const switchBtn = target.closest('[data-switch-id]');
-            const monsterId = switchBtn.dataset.switchId;
-            submitAction(switchUrl, { player_monster_id: monsterId });
+            const monsterId = Number.parseInt(switchBtn.dataset.switchId || '0', 10);
+            const payload = { type: 'swap', monster_instance_id: monsterId };
+
+            if (! monsterId) {
+                setActionStatus('Please select a valid monster.');
+                return;
+            }
+
+            submitAction(switchUrl, payload);
             return;
         }
 
@@ -305,6 +322,19 @@ export function initWildBattle() {
     applyState(battle, ticket);
 
     if (window.Echo && userId) {
+        const battleChannel = ticket?.id ? `battles.${ticket.id}` : null;
+
+        if (battleChannel) {
+            window.Echo.private(battleChannel).listen('.BattleUpdated', (payload) => {
+                if (!payload || `${payload.battle_id}` !== `${ticket.id}`) {
+                    return;
+                }
+
+                applyState(payload.state || battle, { status: payload.status || ticket.status });
+                setActionStatus('Live update received.');
+            });
+        }
+
         window.Echo.private(`users.${userId}`).listen('.WildBattleUpdated', (payload) => {
             if (!payload || `${payload.ticket_id}` !== `${ticket.id}`) {
                 return;
