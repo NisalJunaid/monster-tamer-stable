@@ -39,12 +39,13 @@ const moveOptions = (activeMonster = null) => {
             label: move.name,
             helper: move.description || move.type || 'Move',
             style: move.style || 'monster',
+            slot: move.slot || Number.parseInt(move.style, 10) || null,
         }));
     }
 
     return [
-        { key: 'monster', label: 'Monster Technique', helper: 'Elemental strike', style: 'monster' },
-        { key: 'martial', label: 'Martial Arts', helper: 'Physical combo', style: 'martial' },
+        { key: 'monster', label: 'Monster Technique', helper: 'Elemental strike', style: 'monster', slot: 1 },
+        { key: 'martial', label: 'Martial Arts', helper: 'Physical combo', style: 'martial', slot: 2 },
     ];
 };
 
@@ -56,12 +57,14 @@ const renderSwitchList = (monsters = [], activeId = null) => {
     }
 
     return eligible
-        .map(
-            (monster) => `<button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left" data-switch-id="${monster.id}">
+        .map((monster) => {
+            const switchId = monster.player_monster_id ?? monster.id ?? monster.instance_id;
+
+            return `<button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left" data-player-monster-id="${switchId}" data-switch-id="${switchId}">
                     <div class="font-semibold">${monster.name}</div>
                     <p class="text-sm text-gray-600">Lv ${monster.level} • HP ${monster.current_hp} / ${monster.max_hp}</p>
-                </button>`,
-        )
+                </button>`;
+        })
         .join('');
 };
 
@@ -100,6 +103,81 @@ const parseInitialState = () => {
     }
 };
 
+const normalizeMoves = (moves = []) => {
+    if (!moves.length) return [];
+
+    return moves
+        .map((move, index) => {
+            const slot = move.slot ?? index + 1;
+
+            return {
+                id: move.id ?? slot,
+                slot,
+                name: move.name ?? move.label ?? 'Move',
+                type: move.type ?? 'Neutral',
+                category: move.category ?? 'physical',
+                power: move.power ?? null,
+                effect: move.effect ?? move.effects ?? [],
+                style: move.style ?? `${slot}`,
+            };
+        })
+        .filter(Boolean);
+};
+
+const normalizeMonsters = (monsters = []) => {
+    return monsters
+        .map((monster, index) => {
+            const instanceId =
+                monster.player_monster_id ?? monster.instance_id ?? monster.id ?? monster.monster_instance_id ?? index;
+
+            return {
+                id: instanceId,
+                instance_id: instanceId,
+                name: monster.name ?? 'Unknown',
+                level: monster.level ?? null,
+                types: monster.types ?? [],
+                type_names: monster.type_names ?? [],
+                stats: monster.stats ?? [],
+                max_hp: monster.max_hp ?? monster.hp ?? null,
+                current_hp: monster.current_hp ?? monster.hp ?? null,
+                status: monster.status ?? null,
+                moves: normalizeMoves(monster.moves || []),
+            };
+        })
+        .filter(Boolean);
+};
+
+const resolveActiveId = (side = {}, monsters = []) => {
+    const activeIndex = side.active_index ?? 0;
+    const fallback = monsters[0]?.id ?? null;
+
+    return monsters[activeIndex]?.id ?? fallback;
+};
+
+const resolveActiveMonster = (side = {}, monsters = []) => {
+    const activeIndex = side.active_index ?? 0;
+
+    return monsters[activeIndex] ?? monsters[0] ?? null;
+};
+
+const transformPvpLog = (log = [], viewerId = null, opponentName = 'opponent') => {
+    return log.map((entry) => {
+        const actorId = entry.actor_user_id ?? null;
+        const action = entry.action ?? {};
+        const events = entry.events ?? [];
+        const damageEvent = events.find((event) => event.type === 'damage') || events[0] || {};
+        const actorLabel = actorId === viewerId ? 'you' : opponentName || 'opponent';
+
+        return {
+            actor: actorLabel,
+            type: action.type ?? damageEvent.type ?? 'action',
+            style: action.slot ?? action.style ?? null,
+            damage: damageEvent.amount ?? null,
+            multiplier: damageEvent?.multipliers?.type ?? damageEvent?.multipliers ?? null,
+        };
+    });
+};
+
 export function initWildBattle() {
     const container = document.getElementById('wild-battle-page');
 
@@ -130,6 +208,7 @@ export function initWildBattle() {
     const wildStatus = container.querySelector('[data-wild-status]');
     const wildHpText = container.querySelector('[data-wild-hp-text]');
     const wildHpBar = container.querySelector('[data-wild-hp-bar]');
+    const opponentTeamDots = container.querySelector('[data-opponent-team-dots-list]');
     const logEntries = container.querySelector('[data-log-entries]');
     const moveList = container.querySelector('[data-move-list]');
     const switchList = container.querySelector('[data-switch-list]');
@@ -137,6 +216,7 @@ export function initWildBattle() {
     const actionTabs = container.querySelectorAll('[data-action-tab]');
 
     const initial = parseInitialState();
+    const mode = container.dataset.mode || initial?.mode || 'wild';
 
     if (!initial) {
         return;
@@ -144,6 +224,7 @@ export function initWildBattle() {
 
     let battle = initial.battle || {};
     let ticket = initial.ticket || {};
+    let opponentName = battle?.wild?.name || 'opponent';
     let redirectTimeout = null;
 
     const setActionStatus = (message) => {
@@ -178,7 +259,7 @@ export function initWildBattle() {
 
         moveList.innerHTML = moves
             .map(
-                (move) => `<button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400" data-move-style="${move.style}" data-move-key="${move.key}">
+                (move) => `<button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400" data-move-style="${move.style}" data-move-slot="${move.slot || ''}" data-move-key="${move.key}">
                         <div class="flex items-center justify-between">
                             <span class="font-semibold">${move.label}</span>
                             <span class="text-xs text-gray-500">${move.helper}</span>
@@ -192,9 +273,14 @@ export function initWildBattle() {
         battle = nextBattle || battle;
         ticket = { ...ticket, ...nextTicket };
 
+        if (battle?.wild?.name) {
+            opponentName = battle.wild.name;
+        }
+
         const activeMonster = (battle.player_monsters || []).find((m) => m.id === battle.player_active_monster_id) ||
             (battle.player_monsters || [])[0];
         const wild = battle.wild || {};
+        const opponentTeam = battle.opponent_monsters || [];
 
         const playerHpPercent = clampPercent(activeMonster?.current_hp ?? 0, activeMonster?.max_hp ?? 1);
         const wildHpPercent = clampPercent(wild.current_hp ?? 0, wild.max_hp ?? 1);
@@ -211,6 +297,14 @@ export function initWildBattle() {
         if (wildStatus) wildStatus.textContent = wild.current_hp <= 0 ? 'Fainted' : 'Alert';
         if (wildHpText) wildHpText.textContent = `HP ${wild.current_hp ?? 0} / ${wild.max_hp ?? 0}`;
         if (wildHpBar) wildHpBar.style.width = `${wildHpPercent}%`;
+
+        if (opponentTeamDots) {
+            const aliveTeam = (opponentTeam || []).filter((monster) => (monster?.current_hp ?? 0) > 0);
+
+            opponentTeamDots.innerHTML = aliveTeam
+                .map(() => '<span class="team-dot"></span>')
+                .join('') || '<span class="text-xs text-gray-500">No conscious monsters</span>';
+        }
 
         if (logEntries) logEntries.innerHTML = renderLog(battle.last_action_log || []);
         if (moveList) renderMoves(activeMonster);
@@ -267,14 +361,33 @@ export function initWildBattle() {
         if (target instanceof HTMLElement && target.closest('[data-move-style]')) {
             const moveBtn = target.closest('[data-move-style]');
             const style = moveBtn.dataset.moveStyle;
-            submitAction(moveUrl, { style });
+            const slot = Number.parseInt(moveBtn.dataset.moveSlot || '0', 10);
+            const payload = { type: 'move' };
+
+            if (Number.isInteger(slot) && slot > 0) {
+                payload.slot = slot;
+            } else if (style) {
+                payload.style = style;
+            }
+
+            submitAction(moveUrl, payload);
             return;
         }
 
-        if (target instanceof HTMLElement && target.closest('[data-switch-id]')) {
-            const switchBtn = target.closest('[data-switch-id]');
-            const monsterId = switchBtn.dataset.switchId;
-            submitAction(switchUrl, { player_monster_id: monsterId });
+        if (target instanceof HTMLElement && target.closest('[data-player-monster-id], [data-switch-id]')) {
+            const switchBtn = target.closest('[data-player-monster-id], [data-switch-id]');
+            const monsterId = Number.parseInt(
+                switchBtn.dataset.playerMonsterId || switchBtn.dataset.switchId || '0',
+                10,
+            );
+            const payload = { type: 'swap', player_monster_id: monsterId };
+
+            if (! monsterId) {
+                setActionStatus('Please select a valid monster.');
+                return;
+            }
+
+            submitAction(switchUrl, payload);
             return;
         }
 
@@ -305,14 +418,63 @@ export function initWildBattle() {
     applyState(battle, ticket);
 
     if (window.Echo && userId) {
-        window.Echo.private(`users.${userId}`).listen('.WildBattleUpdated', (payload) => {
-            if (!payload || `${payload.ticket_id}` !== `${ticket.id}`) {
-                return;
-            }
+        const battleChannel = ticket?.id ? `battles.${ticket.id}` : null;
 
-            applyState(payload.battle || battle, { status: payload.status || ticket.status });
-            setActionStatus('Live update received.');
-        });
+        if (mode === 'pvp' && battleChannel) {
+            window.Echo.private(battleChannel).listen('.BattleUpdated', (payload) => {
+                if (!payload || `${payload.battle_id}` !== `${ticket.id}`) {
+                    return;
+                }
+
+                const nextState = (() => {
+                    const participants = payload.state?.participants || {};
+                    const participantIds = Object.keys(participants).map((id) => Number.parseInt(id, 10));
+                    const opponentId = participantIds.find((id) => id !== Number(userId)) ?? null;
+                    const viewerSide = participants[userId] || { monsters: [], active_index: 0 };
+                    const opponentSide = (opponentId && participants[opponentId]) || { monsters: [], active_index: 0 };
+                    const playerMonsters = normalizeMonsters(viewerSide.monsters || []);
+                    const opponentMonsters = normalizeMonsters(opponentSide.monsters || []);
+
+                    return {
+                        active: (payload.status ?? 'active') === 'active',
+                        resolved: (payload.status ?? 'active') !== 'active',
+                        turn: payload.state?.turn ?? 1,
+                        next_actor_id: payload.state?.next_actor_id ?? null,
+                        player_active_monster_id: resolveActiveId(viewerSide, playerMonsters),
+                        player_monsters: playerMonsters,
+                        opponent_monsters: opponentMonsters,
+                        wild: resolveActiveMonster(opponentSide, opponentMonsters),
+                        last_action_log: transformPvpLog(payload.state?.log || [], Number(userId), opponentName),
+                        wild_ai: false,
+                    };
+                })();
+
+                applyState(nextState, { status: payload.status || ticket.status });
+                setActionStatus('Live update received.');
+            });
+        }
+
+        if (mode === 'wild' && battleChannel) {
+            window.Echo.private(battleChannel).listen('.BattleUpdated', (payload) => {
+                if (!payload || `${payload.battle_id}` !== `${ticket.id}`) {
+                    return;
+                }
+
+                applyState(payload.state || battle, { status: payload.status || ticket.status });
+                setActionStatus('Live update received.');
+            });
+        }
+
+        if (mode === 'wild') {
+            window.Echo.private(`users.${userId}`).listen('.WildBattleUpdated', (payload) => {
+                if (!payload || `${payload.ticket_id}` !== `${ticket.id}`) {
+                    return;
+                }
+
+                applyState(payload.battle || battle, { status: payload.status || ticket.status });
+                setActionStatus('Live update received.');
+            });
+        }
     }
 }
 
