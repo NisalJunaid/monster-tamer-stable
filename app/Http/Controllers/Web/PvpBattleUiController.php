@@ -10,6 +10,7 @@ use App\Events\BattleUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Battle;
 use App\Models\BattleTurn;
+use App\Models\PlayerMonster;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -172,47 +173,73 @@ class PvpBattleUiController extends Controller
             throw new InvalidArgumentException('Monster not found on your team.');
         }
 
+        $ownedMonsters = PlayerMonster::query()
+            ->where('user_id', $actor->id)
+            ->orderByDesc('is_in_team')
+            ->orderBy('team_slot')
+            ->orderByDesc('level')
+            ->take(count($viewerSide['monsters'] ?? []))
+            ->get()
+            ->values();
+
         $playerMonsters = collect($viewerSide['monsters'] ?? [])
-            ->map(function (array $monster) {
-                $playerMonsterId = $monster['player_monster_id'] ?? $monster['id'] ?? null;
+            ->map(function (array $monster, int $index) use ($ownedMonsters) {
+                $playerMonsterId = $monster['player_monster_id']
+                    ?? $monster['id']
+                    ?? $monster['monster_instance_id']
+                    ?? $monster['instance_id']
+                    ?? null;
+
+                if ($playerMonsterId === null && $ownedMonsters->has($index)) {
+                    $playerMonsterId = $ownedMonsters[$index]->id;
+                }
+
+                $playerMonsterId = is_numeric($playerMonsterId) ? (int) $playerMonsterId : null;
 
                 return [
                     ...$monster,
+                    'id' => $playerMonsterId,
                     'player_monster_id' => $playerMonsterId,
                 ];
             })
             ->values()
             ->all();
 
-        $switchState = [
+        $activeIndex = $viewerSide['active_index'] ?? 0;
+        $activePlayerMonsterId = $playerMonsters[$activeIndex]['player_monster_id'] ?? null;
+
+        $wildLikeState = [
             'player_monsters' => $playerMonsters,
-            'player_active_monster_id' => $playerMonsters[$viewerSide['active_index'] ?? 0]['player_monster_id'] ?? null,
+            'player_active_monster_id' => $activePlayerMonsterId,
             'turn' => $state['turn'] ?? 1,
             'last_action_log' => [],
         ];
 
+        \Log::info('PVP state before switch', [
+            'user_id' => $actor->id,
+            'player_monsters' => $wildLikeState['player_monsters'],
+        ]);
+
         $log = [];
-        $result = $this->monsterSwitchService->switchPlayerMonster($switchState, (int) $action['player_monster_id'], $log, $actor->id);
-        $newActiveId = $result['id'] ?? $switchState['player_active_monster_id'];
+        $result = $this->monsterSwitchService->switchPlayerMonster(
+            $wildLikeState,
+            (int) $action['player_monster_id'],
+            $log,
+            $actor->id,
+        );
 
-        $targetIndex = null;
-
-        foreach ($playerMonsters as $index => $monster) {
-            if (($monster['player_monster_id'] ?? $monster['id']) === $newActiveId) {
-                $targetIndex = $index;
-                break;
-            }
-        }
+        $targetIndex = $result['index'] ?? null;
+        $newActiveId = $result['id'] ?? ($wildLikeState['player_active_monster_id'] ?? null);
 
         if ($targetIndex === null) {
             throw new InvalidArgumentException('Monster not found on your team.');
         }
 
-        $viewerSide['monsters'] = $playerMonsters;
+        $viewerSide['monsters'] = $wildLikeState['player_monsters'];
         $viewerSide['active_index'] = $targetIndex;
 
         $state['participants'][$actor->id] = $viewerSide;
-        $state['turn'] = $switchState['turn'] ?? ($state['turn'] ?? 1);
+        $state['turn'] = $wildLikeState['turn'] ?? ($state['turn'] ?? 1);
         $state['next_actor_id'] = $this->opponentId($battle, $actor);
         $state['log'][] = [
             'turn' => $state['turn'] ?? 1,

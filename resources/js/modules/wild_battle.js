@@ -14,7 +14,8 @@ const renderTeamList = (monsters = [], activeId = null) => {
 
     return monsters
         .map((monster) => {
-            const isActive = monster.id === activeId;
+            const monsterId = monster.player_monster_id ?? monster.id;
+            const isActive = monsterId === activeId;
             const hp = `HP ${monster.current_hp} / ${monster.max_hp}`;
             const activeBadge = isActive
                 ? '<span class="ml-2 text-emerald-300 text-xs bg-emerald-900/40 px-2 py-0.5 rounded-full">Active</span>'
@@ -50,7 +51,31 @@ const moveOptions = (activeMonster = null) => {
 };
 
 const renderSwitchList = (monsters = [], activeId = null) => {
-    const eligible = monsters.filter((monster) => monster.id !== activeId && monster.current_hp > 0);
+    const normalizeMonsterId = (monster) => {
+        const candidate =
+            monster.player_monster_id ?? monster.id ?? monster.instance_id ?? monster.monster_instance_id ?? null;
+
+        return Number.isFinite(Number(candidate)) ? Number(candidate) : null;
+    };
+
+    const normalizedActiveId =
+        activeId !== null && activeId !== undefined && Number.isFinite(Number(activeId))
+            ? Number(activeId)
+            : null;
+
+    const eligible = monsters
+        .map((monster) => ({ ...monster, _resolvedId: normalizeMonsterId(monster) }))
+        .filter((monster) => {
+            const monsterId = monster._resolvedId;
+
+            if (monsterId === null || !Number.isInteger(monsterId)) {
+                return false;
+            }
+
+            const isActive = normalizedActiveId !== null ? monsterId === normalizedActiveId : false;
+
+            return !isActive && monster.current_hp > 0;
+        });
 
     if (!eligible.length) {
         return '<p class="text-sm text-gray-600">No healthy teammates to switch into.</p>';
@@ -58,10 +83,9 @@ const renderSwitchList = (monsters = [], activeId = null) => {
 
     return eligible
         .map((monster) => {
-            const switchId = monster.player_monster_id ?? monster.id ?? monster.instance_id;
-            const playerMonsterId = monster.player_monster_id ?? switchId;
+            const playerMonsterId = monster._resolvedId;
 
-            return `<button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left" data-player-monster-id="${playerMonsterId}" data-monster-instance-id="${switchId}" data-switch-id="${switchId}">
+            return `<button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left" data-player-monster-id="${playerMonsterId}">
                     <div class="font-semibold">${monster.name}</div>
                     <p class="text-sm text-gray-600">Lv ${monster.level} • HP ${monster.current_hp} / ${monster.max_hp}</p>
                 </button>`;
@@ -280,7 +304,8 @@ export function initWildBattle() {
             opponentName = battle.wild.name;
         }
 
-        const activeMonster = (battle.player_monsters || []).find((m) => m.id === battle.player_active_monster_id) ||
+        const activeMonster = (battle.player_monsters || []).find((m) => m.player_monster_id === battle.player_active_monster_id) ||
+            (battle.player_monsters || []).find((m) => m.id === battle.player_active_monster_id) ||
             (battle.player_monsters || [])[0];
         const wild = battle.wild || {};
         const opponentTeam = battle.opponent_monsters || [];
@@ -377,16 +402,16 @@ export function initWildBattle() {
             return;
         }
 
-        if (target instanceof HTMLElement && target.closest('[data-player-monster-id], [data-switch-id]')) {
-            const switchBtn = target.closest('[data-player-monster-id], [data-switch-id]');
-            const monsterId = Number.parseInt(switchBtn.dataset.playerMonsterId || switchBtn.dataset.switchId || '0', 10);
+        if (target instanceof HTMLElement && target.closest('[data-player-monster-id]')) {
+            const switchBtn = target.closest('[data-player-monster-id]');
+            const monsterId = Number.parseInt(switchBtn.dataset.playerMonsterId ?? '', 10);
 
-            if (! monsterId) {
+            if (! Number.isInteger(monsterId)) {
                 setActionStatus('Please select a valid monster.');
                 return;
             }
 
-            const payload = { type: 'swap', player_monster_id: monsterId };
+            const payload = { player_monster_id: monsterId };
 
             submitAction(switchUrl, payload);
             return;

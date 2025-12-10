@@ -6,8 +6,12 @@
     $ticket = $payload['ticket'] ?? [];
 
     $playerMonsters = $battleState['player_monsters'] ?? [];
-    $activeId = $battleState['player_active_monster_id'] ?? null;
-    $activeMonster = collect($playerMonsters)->firstWhere('id', $activeId) ?? $playerMonsters[0] ?? null;
+    $activeId = $battleState['player_active_monster_id'] ?? ($playerMonsters[0]['player_monster_id'] ?? $playerMonsters[0]['id'] ?? null);
+    $activeMonster = collect($playerMonsters)
+        ->firstWhere('player_monster_id', $activeId)
+        ?? collect($playerMonsters)->firstWhere('id', $activeId)
+        ?? $playerMonsters[0]
+        ?? null;
     $opponent = $battleState['wild'] ?? null;
     $opponentMonsters = $battleState['opponent_monsters'] ?? [];
     $opponentAliveCount = collect($opponentMonsters)->filter(fn ($monster) => ($monster['current_hp'] ?? 0) > 0)->count();
@@ -142,7 +146,21 @@
         </div>
         <div class="border rounded-lg p-4 bg-gray-50 hidden" data-action-panel="switch">
             <p class="text-sm text-gray-600 mb-3">Switch to another teammate:</p>
-            <div class="grid md:grid-cols-2 gap-2" data-switch-list></div>
+            <div class="grid md:grid-cols-2 gap-2" data-switch-list>
+                @foreach($playerMonsters as $monster)
+                    @php
+                        $switchId = $monster['player_monster_id'] ?? $monster['id'] ?? $monster['instance_id'] ?? null;
+                        $isHealthy = ($monster['current_hp'] ?? 0) > 0;
+                    @endphp
+                    @if($switchId !== null && $isHealthy && $switchId !== $activeId)
+                        <button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left"
+                                data-player-monster-id="{{ $switchId }}">
+                            <div class="font-semibold">{{ $monster['name'] }}</div>
+                            <p class="text-sm text-gray-600">Lv {{ $monster['level'] }} • HP {{ $monster['current_hp'] }} / {{ $monster['max_hp'] }}</p>
+                        </button>
+                    @endif
+                @endforeach
+            </div>
         </div>
         <div class="border rounded-lg p-4 bg-gray-50 hidden" data-action-panel="run">
             <p class="text-sm text-gray-600 mb-3">Forfeit the battle.</p>
