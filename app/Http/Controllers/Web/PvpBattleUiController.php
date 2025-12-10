@@ -178,6 +178,7 @@ class PvpBattleUiController extends Controller
 
                 return [
                     ...$monster,
+                    'id' => $playerMonsterId,
                     'player_monster_id' => $playerMonsterId,
                 ];
             })

@@ -386,7 +386,7 @@ export function initWildBattle() {
                 return;
             }
 
-            const payload = { type: 'swap', player_monster_id: monsterId };
+            const payload = { player_monster_id: monsterId };
 
             submitAction(switchUrl, payload);
             return;
