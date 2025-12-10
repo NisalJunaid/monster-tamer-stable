@@ -105,7 +105,7 @@ class PvpController extends Controller
         ]);
     }
 
-    public function queue(Request $request): RedirectResponse
+    public function queue(Request $request): Response
     {
         $data = $request->validate([
             'mode' => 'required|in:ranked,casual',
