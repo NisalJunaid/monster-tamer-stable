@@ -6,8 +6,12 @@
     $ticket = $payload['ticket'] ?? [];
 
     $playerMonsters = $battleState['player_monsters'] ?? [];
-    $activeId = $battleState['player_active_monster_id'] ?? ($playerMonsters[0]['player_monster_id'] ?? null);
-    $activeMonster = collect($playerMonsters)->firstWhere('player_monster_id', $activeId) ?? $playerMonsters[0] ?? null;
+    $activeId = $battleState['player_active_monster_id'] ?? ($playerMonsters[0]['player_monster_id'] ?? $playerMonsters[0]['id'] ?? null);
+    $activeMonster = collect($playerMonsters)
+        ->firstWhere('player_monster_id', $activeId)
+        ?? collect($playerMonsters)->firstWhere('id', $activeId)
+        ?? $playerMonsters[0]
+        ?? null;
     $opponent = $battleState['wild'] ?? null;
     $opponentMonsters = $battleState['opponent_monsters'] ?? [];
     $opponentAliveCount = collect($opponentMonsters)->filter(fn ($monster) => ($monster['current_hp'] ?? 0) > 0)->count();
@@ -145,7 +149,7 @@
             <div class="grid md:grid-cols-2 gap-2" data-switch-list>
                 @foreach($playerMonsters as $monster)
                     @php
-                        $switchId = $monster['player_monster_id'] ?? null;
+                        $switchId = $monster['player_monster_id'] ?? $monster['id'] ?? $monster['instance_id'] ?? null;
                         $isHealthy = ($monster['current_hp'] ?? 0) > 0;
                     @endphp
                     @if($switchId !== null && $isHealthy && $switchId !== $activeId)

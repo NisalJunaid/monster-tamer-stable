@@ -43,6 +43,15 @@ class MonsterSwitchService
             }
         }
 
+        \Log::info('PvP switch debug', [
+            'user_id' => $userId,
+            'requested_player_monster_id' => $playerMonsterId,
+            'available_player_monster_ids' => array_map(
+                fn ($m) => $m['player_monster_id'] ?? null,
+                $state['player_monsters'] ?? []
+            ),
+        ]);
+
         abort(404, 'Monster not found on your team.');
     }
 }
