@@ -40,6 +40,7 @@ class PvpBattleUiController extends Controller
     {
         $viewer = $this->assertParticipant($request, $battle);
         $payload = $request->validate([
+            'type' => ['nullable', 'in:move'],
             'style' => ['nullable'],
             'slot' => ['nullable', 'integer', 'min:1', 'max:4'],
         ]);
@@ -60,12 +61,20 @@ class PvpBattleUiController extends Controller
     {
         $viewer = $this->assertParticipant($request, $battle);
         $payload = $request->validate([
-            'player_monster_id' => ['required', 'integer'],
+            'type' => ['nullable', 'in:swap'],
+            'player_monster_id' => ['nullable', 'integer'],
+            'monster_instance_id' => ['nullable', 'integer'],
         ]);
+
+        $monsterId = (int) ($payload['monster_instance_id'] ?? $payload['player_monster_id'] ?? 0);
+
+        if (! $monsterId) {
+            return response()->json(['message' => 'Please select a monster to switch to.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         return $this->applyAndRespond($battle, $viewer, [
             'type' => 'swap',
-            'monster_instance_id' => (int) $payload['player_monster_id'],
+            'monster_instance_id' => $monsterId,
         ]);
     }
 
