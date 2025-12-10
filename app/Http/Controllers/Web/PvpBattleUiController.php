@@ -60,6 +60,9 @@ class PvpBattleUiController extends Controller
     public function switchActive(Request $request, Battle $battle): JsonResponse
     {
         $viewer = $this->assertParticipant($request, $battle);
+        // PvP switch entry point: accepts the client-provided monster identifier and forwards
+        // it to BattleEngine::swapActive, which searches battle meta for a matching
+        // MonsterInstance id on the viewer's participant record.
         $payload = $request->validate([
             'type' => ['nullable', 'in:swap'],
             'player_monster_id' => ['nullable', 'integer'],

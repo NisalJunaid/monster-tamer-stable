@@ -44,6 +44,8 @@ class WildBattleController extends Controller
 
     public function switchActive(Request $request, EncounterTicket $ticket): JsonResponse
     {
+        // Wild switch entry point: expects player_monster_id and passes it through to
+        // WildBattleService, which swaps by matching that id in battle_state['player_monsters'].
         $validated = $request->validate([
             'player_monster_id' => ['required', 'integer'],
         ]);

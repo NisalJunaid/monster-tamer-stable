@@ -295,6 +295,9 @@ class BattleEngine
 
     private function swapActive(array &$participant, int $targetInstanceId): void
     {
+        // PvP swap implementation: expects the MonsterInstance::id stored as each participant
+        // monster's `id` in battle meta and fails with "Monster not found on your team." if
+        // no matching entry is found for the viewer.
         foreach ($participant['monsters'] as $index => $monster) {
             if ($monster['id'] === $targetInstanceId) {
                 if ($monster['current_hp'] <= 0) {

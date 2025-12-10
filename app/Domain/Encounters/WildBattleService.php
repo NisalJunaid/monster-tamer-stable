@@ -68,6 +68,8 @@ class WildBattleService
 
     public function actSwitch(User $user, EncounterTicket $ticket, int $playerMonsterId): EncounterTicket
     {
+        // Wild switch flow: receives player_monster_id from the controller and looks up
+        // the matching entry in battle_state['player_monsters'] by its id before swapping.
         $stateful = $this->ensureActiveBattle($user, $ticket);
         $log = [];
 
