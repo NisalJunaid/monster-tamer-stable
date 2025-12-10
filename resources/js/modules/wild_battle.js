@@ -57,12 +57,14 @@ const renderSwitchList = (monsters = [], activeId = null) => {
     }
 
     return eligible
-        .map(
-            (monster) => `<button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left" data-switch-id="${monster.id}">
+        .map((monster) => {
+            const switchId = monster.instance_id ?? monster.id;
+
+            return `<button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left" data-switch-id="${switchId}">
                     <div class="font-semibold">${monster.name}</div>
                     <p class="text-sm text-gray-600">Lv ${monster.level} • HP ${monster.current_hp} / ${monster.max_hp}</p>
-                </button>`,
-        )
+                </button>`;
+        })
         .join('');
 };
 
@@ -124,18 +126,23 @@ const normalizeMoves = (moves = []) => {
 
 const normalizeMonsters = (monsters = []) => {
     return monsters
-        .map((monster, index) => ({
-            id: monster.id ?? monster.monster_instance_id ?? monster.player_monster_id ?? index,
-            name: monster.name ?? 'Unknown',
-            level: monster.level ?? null,
-            types: monster.types ?? [],
-            type_names: monster.type_names ?? [],
-            stats: monster.stats ?? [],
-            max_hp: monster.max_hp ?? monster.hp ?? null,
-            current_hp: monster.current_hp ?? monster.hp ?? null,
-            status: monster.status ?? null,
-            moves: normalizeMoves(monster.moves || []),
-        }))
+        .map((monster, index) => {
+            const instanceId = monster.instance_id ?? monster.id ?? monster.monster_instance_id ?? monster.player_monster_id ?? index;
+
+            return {
+                id: instanceId,
+                instance_id: instanceId,
+                name: monster.name ?? 'Unknown',
+                level: monster.level ?? null,
+                types: monster.types ?? [],
+                type_names: monster.type_names ?? [],
+                stats: monster.stats ?? [],
+                max_hp: monster.max_hp ?? monster.hp ?? null,
+                current_hp: monster.current_hp ?? monster.hp ?? null,
+                status: monster.status ?? null,
+                moves: normalizeMoves(monster.moves || []),
+            };
+        })
         .filter(Boolean);
 };
 
