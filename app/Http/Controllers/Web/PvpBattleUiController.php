@@ -146,6 +146,8 @@ class PvpBattleUiController extends Controller
             'ended_at' => $hasEnded ? now() : null,
         ]);
 
+        // turn_number is pulled from the in-memory result payload (engine move
+        // output or swap state) rather than recomputing the next turn in SQL.
         BattleTurn::query()->create([
             'battle_id' => $battle->id,
             'turn_number' => $turnNumber,

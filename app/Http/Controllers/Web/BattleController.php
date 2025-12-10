@@ -117,6 +117,8 @@ class BattleController extends Controller
             'ended_at' => $hasEnded ? now() : null,
         ]);
 
+        // turn_number mirrors the engine's $result['turn'] value captured before
+        // the state increment, so the DB insert trusts the in-memory counter.
         BattleTurn::query()->create([
             'battle_id' => $battle->id,
             'turn_number' => $turnNumber,
