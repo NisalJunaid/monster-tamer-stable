@@ -6,8 +6,8 @@
     $ticket = $payload['ticket'] ?? [];
 
     $playerMonsters = $battleState['player_monsters'] ?? [];
-    $activeId = $battleState['player_active_monster_id'] ?? null;
-    $activeMonster = collect($playerMonsters)->firstWhere('id', $activeId) ?? $playerMonsters[0] ?? null;
+    $activeId = $battleState['player_active_monster_id'] ?? ($playerMonsters[0]['player_monster_id'] ?? null);
+    $activeMonster = collect($playerMonsters)->firstWhere('player_monster_id', $activeId) ?? $playerMonsters[0] ?? null;
     $opponent = $battleState['wild'] ?? null;
     $opponentMonsters = $battleState['opponent_monsters'] ?? [];
     $opponentAliveCount = collect($opponentMonsters)->filter(fn ($monster) => ($monster['current_hp'] ?? 0) > 0)->count();

@@ -58,6 +58,11 @@ const renderSwitchList = (monsters = [], activeId = null) => {
         }
 
         const monsterId = Number(monster.player_monster_id);
+
+        if (!Number.isInteger(monsterId) || monsterId <= 0) {
+            return false;
+        }
+
         const isActive = normalizedActiveId !== null ? monsterId === normalizedActiveId : false;
 
         return !isActive && monster.current_hp > 0;
