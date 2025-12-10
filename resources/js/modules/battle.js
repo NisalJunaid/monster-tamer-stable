@@ -2,6 +2,45 @@ import axios from 'axios';
 
 const escapeHtml = (value = '') => `${value}`.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
+function getAudio(id) {
+    const el = document.getElementById(id);
+    return el && typeof el.play === 'function' ? el : null;
+}
+
+const mainClickSound = getAudio('battle-click-main') || getAudio('battle-click-sound') || null;
+const moveClickSound = getAudio('battle-click-move') || mainClickSound;
+
+function playSound(audioEl) {
+    if (!audioEl) return;
+    try {
+        audioEl.currentTime = 0;
+        audioEl.play();
+    } catch (e) {
+        // Ignore autoplay or gesture-related errors
+    }
+}
+
+export function wireBattleSounds(root) {
+    if (!root) return;
+
+    root.querySelectorAll('.js-battle-main-action').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            playSound(mainClickSound);
+        });
+    });
+
+    root.querySelectorAll('.js-battle-move').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            playSound(moveClickSound);
+
+            btn.classList.add('is-pressed');
+            setTimeout(() => {
+                btn.classList.remove('is-pressed');
+            }, 120);
+        });
+    });
+}
+
 const hpPercent = (monster) => {
     if (!monster) return 0;
     const max = Math.max(1, monster.max_hp || 0);
@@ -85,7 +124,7 @@ const renderMoves = (moves = []) => {
                     <input type="hidden" name="_token" value="${escapeHtml(document.head.querySelector('meta[name="csrf-token"]')?.content || '')}" />
                     <input type="hidden" name="type" value="move">
                     <input type="hidden" name="slot" value="${move.slot}">
-                    <button class="w-full px-3 py-3 rounded-lg border border-gray-200 hover:border-emerald-400 hover:shadow text-left" data-move-slot="${move.slot}">
+                    <button class="w-full px-3 py-3 rounded-lg border border-gray-200 hover:border-emerald-400 hover:shadow text-left js-battle-move" data-move-slot="${move.slot}">
                         <div class="flex items-center justify-between">
                             <span class="font-semibold">${escapeHtml(move.name)}</span>
                             <span class="text-xs uppercase text-gray-500">Slot ${move.slot}</span>
@@ -347,6 +386,8 @@ export function initBattleLive(root = document) {
         if (logContainer) {
             logContainer.innerHTML = renderLog(battleState.log || [], players);
         }
+
+        wireBattleSounds(container);
 
         updateHeader();
         toggleControls(waitingForResolution);

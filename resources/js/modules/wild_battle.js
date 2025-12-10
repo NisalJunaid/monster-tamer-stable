@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { wireBattleSounds } from './battle';
 
 const clampPercent = (current = 0, max = 1) => {
     const safeMax = Math.max(1, max || 1);
@@ -288,7 +289,7 @@ export function initWildBattle() {
 
         moveList.innerHTML = moves
             .map(
-                (move) => `<button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400" data-move-style="${move.style}" data-move-slot="${move.slot || ''}" data-move-key="${move.key}">
+                (move) => `<button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400 js-battle-move" data-move-style="${move.style}" data-move-slot="${move.slot || ''}" data-move-key="${move.key}">
                         <div class="flex items-center justify-between">
                             <span class="font-semibold">${move.label}</span>
                             <span class="text-xs text-gray-500">${move.helper}</span>
@@ -347,6 +348,8 @@ export function initWildBattle() {
         if (turnIndicator) turnIndicator.textContent = (battle.active ?? true) ? 'Choose your move' : 'Battle resolved';
         if (statusLabel) statusLabel.textContent = `State: ${formatStatus(battle)}`;
         if (turnLabel) turnLabel.textContent = battle.turn ?? 1;
+
+        wireBattleSounds(container);
 
         checkResolution();
     };
