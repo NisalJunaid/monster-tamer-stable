@@ -403,6 +403,8 @@ export function initBattleLive(root = document) {
             logContainer.innerHTML = renderLog(battleState.log || [], players);
         }
 
+        wireBattleSounds(container);
+
         updateHeader();
         toggleControls(waitingForResolution);
     };
