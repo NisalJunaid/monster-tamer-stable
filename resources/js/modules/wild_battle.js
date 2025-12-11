@@ -53,7 +53,14 @@ const moveOptions = (activeMonster = null) => {
 
 const renderSwitchList = (monsters = [], activeId = null) => {
     const normalizeMonsterId = (monster) => {
-        const candidate = Number.parseInt(monster.player_monster_id ?? '', 10);
+        const candidate = [
+            monster.player_monster_id,
+            monster.id,
+            monster.instance_id,
+            monster.monster_instance_id,
+        ]
+            .map((raw) => Number.parseInt(raw ?? '', 10))
+            .find((value) => Number.isInteger(value));
 
         return Number.isInteger(candidate) ? candidate : null;
     };

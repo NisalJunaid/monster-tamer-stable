@@ -228,4 +228,26 @@
         ]) !!}
     </script>
 </div>
+
+<div class="hidden" data-battle-live
+     data-battle-id="{{ $battle->id }}"
+     data-user-id="{{ $viewer->id }}">
+    {{-- Hidden listener container: reuse battle.js socket setup so both PvP opponents subscribe to BattleUpdated for this battle. --}}
+    <script type="application/json" data-battle-initial-state>
+        {!! json_encode([
+            'battle' => [
+                'id' => $battle->id,
+                'status' => $battle->status,
+                'seed' => $battle->seed,
+                'mode' => $liveState['mode'] ?? 'pvp',
+                'player1_id' => $battle->player1_id,
+                'player2_id' => $battle->player2_id,
+                'winner_user_id' => $battle->winner_user_id,
+            ],
+            'players' => $livePlayers,
+            'state' => $liveState,
+            'viewer_id' => $viewer->id,
+        ]) !!}
+    </script>
+</div>
 @endsection
