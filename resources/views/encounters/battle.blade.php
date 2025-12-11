@@ -115,8 +115,8 @@
         <div class="border rounded-lg p-4 bg-gray-50" data-action-panel="move">
             <p class="text-sm text-gray-600 mb-3">Select a move:</p>
             <div class="grid md:grid-cols-2 gap-3" data-move-list>
-                <button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400 js-battle-move" data-move-style="monster">Monster Technique</button>
-                <button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400 js-battle-move" data-move-style="martial">Martial Arts</button>
+                <button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400 js-battle-move js-battle-main-action" data-move-style="monster">Monster Technique</button>
+                <button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400 js-battle-move js-battle-main-action" data-move-style="martial">Martial Arts</button>
             </div>
         </div>
         <div class="border rounded-lg p-4 bg-gray-50 hidden" data-action-panel="bag">

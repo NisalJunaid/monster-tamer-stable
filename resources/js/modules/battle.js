@@ -34,12 +34,9 @@ export function wireBattleSounds(root) {
         const target = event.target;
         if (!target) return;
 
-        if (target.closest('.js-battle-main-action')) {
-            playSound(mainClickSound);
-            return;
-        }
-
         const moveBtn = target.closest('.js-battle-move');
+        const mainAction = target.closest('.js-battle-main-action');
+
         if (moveBtn) {
             playSound(moveClickSound);
 
@@ -47,6 +44,10 @@ export function wireBattleSounds(root) {
             setTimeout(() => {
                 moveBtn.classList.remove('is-pressed');
             }, 120);
+        }
+
+        if (mainAction && (!moveBtn || moveClickSound !== mainClickSound)) {
+            playSound(mainClickSound);
         }
     });
 }
@@ -134,7 +135,7 @@ const renderMoves = (moves = []) => {
                     <input type="hidden" name="_token" value="${escapeHtml(document.head.querySelector('meta[name="csrf-token"]')?.content || '')}" />
                     <input type="hidden" name="type" value="move">
                     <input type="hidden" name="slot" value="${move.slot}">
-                    <button class="w-full px-3 py-3 rounded-lg border border-gray-200 hover:border-emerald-400 hover:shadow text-left js-battle-move" data-move-slot="${move.slot}">
+                    <button class="w-full px-3 py-3 rounded-lg border border-gray-200 hover:border-emerald-400 hover:shadow text-left js-battle-move js-battle-main-action" data-move-slot="${move.slot}">
                         <div class="flex items-center justify-between">
                             <span class="font-semibold">${escapeHtml(move.name)}</span>
                             <span class="text-xs uppercase text-gray-500">Slot ${move.slot}</span>

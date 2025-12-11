@@ -294,7 +294,7 @@ export function initWildBattle() {
 
         moveList.innerHTML = moves
             .map(
-                (move) => `<button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400 js-battle-move" data-move-style="${move.style}" data-move-slot="${move.slot || ''}" data-move-key="${move.key}">
+                (move) => `<button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400 js-battle-move js-battle-main-action" data-move-style="${move.style}" data-move-slot="${move.slot || ''}" data-move-key="${move.key}">
                         <div class="flex items-center justify-between">
                             <span class="font-semibold">${move.label}</span>
                             <span class="text-xs text-gray-500">${move.helper}</span>

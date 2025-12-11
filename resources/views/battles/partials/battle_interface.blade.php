@@ -201,7 +201,7 @@
                             @csrf
                             <input type="hidden" name="type" value="move">
                             <input type="hidden" name="slot" value="{{ $move['slot'] }}">
-                            <button class="w-full px-3 py-3 rounded-lg border border-gray-200 hover:border-emerald-400 hover:shadow text-left js-battle-move" data-move-slot="{{ $move['slot'] }}">
+                            <button class="w-full px-3 py-3 rounded-lg border border-gray-200 hover:border-emerald-400 hover:shadow text-left js-battle-move js-battle-main-action" data-move-slot="{{ $move['slot'] }}">
                                 <div class="flex items-center justify-between">
                                     <span class="font-semibold">{{ $move['name'] }}</span>
                                     <span class="text-xs uppercase text-gray-500">Slot {{ $move['slot'] }}</span>
