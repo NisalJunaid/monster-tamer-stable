@@ -175,7 +175,7 @@
         </div>
         <div class="border rounded-lg p-4 bg-gray-50 hidden" data-action-panel="run">
             <p class="text-sm text-gray-600 mb-3">Forfeit the battle.</p>
-            <button class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500" data-action-run>Concede</button>
+            <button class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500 js-battle-main-action" data-action-run>Concede</button>
         </div>
         <p class="text-sm text-gray-500" data-action-status></p>
     </div>
