@@ -5,8 +5,11 @@
     $battleState = $payload['battle'] ?? [];
     $ticket = $payload['ticket'] ?? [];
 
-    $playerMonsters = $battleState['player_monsters'] ?? [];
-    $activeId = $battleState['player_active_monster_id'] ?? ($playerMonsters[0]['player_monster_id'] ?? $playerMonsters[0]['id'] ?? null);
+    $playerState = $battleState['player'] ?? [];
+    $playerMonsters = $playerState['monsters'] ?? $battleState['player_monsters'] ?? [];
+    $activeId = $playerState['active_monster_id']
+        ?? $battleState['player_active_monster_id']
+        ?? ($playerMonsters[0]['player_monster_id'] ?? $playerMonsters[0]['id'] ?? null);
     $activeMonster = collect($playerMonsters)
         ->firstWhere('player_monster_id', $activeId)
         ?? collect($playerMonsters)->firstWhere('id', $activeId)
@@ -34,6 +37,13 @@
         margin-left: 6px;
     }
 </style>
+@php
+    $livePlayers = [
+        $battle->player1_id => $battle->player1?->name ?? 'Player '.$battle->player1_id,
+        $battle->player2_id => $battle->player2?->name ?? 'Player '.$battle->player2_id,
+    ];
+    $liveState = $battle->meta_json ?? [];
+@endphp
 <div id="wild-battle-page"
      class="space-y-4"
      data-move-url="{{ route('pvp.battles.wild.move', $battle) }}"
@@ -43,6 +53,7 @@
      data-encounters-url="{{ route('pvp.index') }}"
      data-user-id="{{ $viewer->id }}"
      data-ticket-id="{{ $battle->id }}"
+     data-battle-id="{{ $battle->id }}"
      data-mode="pvp">
 
     <script type="application/json" data-wild-battle-state>
@@ -153,7 +164,7 @@
                         $isHealthy = ($monster['current_hp'] ?? 0) > 0;
                     @endphp
                     @if($switchId !== null && $isHealthy && $switchId !== $activeId)
-                        <button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left"
+                        <button class="js-switch-monster px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left"
                                 data-player-monster-id="{{ $switchId }}">
                             <div class="font-semibold">{{ $monster['name'] }}</div>
                             <p class="text-sm text-gray-600">Lv {{ $monster['level'] }} • HP {{ $monster['current_hp'] }} / {{ $monster['max_hp'] }}</p>
@@ -182,5 +193,27 @@
             @endforelse
         </div>
     </div>
+</div>
+
+<div class="hidden" data-battle-live
+     data-battle-id="{{ $battle->id }}"
+     data-user-id="{{ $viewer->id }}">
+    {{-- Hidden listener container: reuse battle.js socket setup so both PvP opponents subscribe to BattleUpdated for this battle. --}}
+    <script type="application/json" data-battle-initial-state>
+        {!! json_encode([
+            'battle' => [
+                'id' => $battle->id,
+                'status' => $battle->status,
+                'seed' => $battle->seed,
+                'mode' => $liveState['mode'] ?? 'pvp',
+                'player1_id' => $battle->player1_id,
+                'player2_id' => $battle->player2_id,
+                'winner_user_id' => $battle->winner_user_id,
+            ],
+            'players' => $livePlayers,
+            'state' => $liveState,
+            'viewer_id' => $viewer->id,
+        ]) !!}
+    </script>
 </div>
 @endsection

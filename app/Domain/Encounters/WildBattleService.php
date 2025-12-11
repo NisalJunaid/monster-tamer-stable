@@ -62,6 +62,7 @@ class WildBattleService
             $ticket = $this->persistBattle($ticket, $stateful['battle_state']);
         }
 
+        // Wild: after switch, broadcast BattleUpdated with fresh state
         $this->broadcast($user, $ticket, $log);
 
         return $ticket;

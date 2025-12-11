@@ -566,6 +566,7 @@ export function initBattleLive(root = document) {
             });
         }
 
+        // Subscribed for both wild and PvP battles; BattleUpdated on "battles.{id}" refreshes each viewer's UI state
         channel.listen('.BattleUpdated', (payload) => {
             applyUpdate(payload, { fromEvent: true });
         });
