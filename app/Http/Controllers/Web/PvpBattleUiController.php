@@ -149,6 +149,12 @@ class PvpBattleUiController extends Controller
             'ended_at' => $hasEnded ? now() : null,
         ]);
 
+        $battle->setAttribute('meta_json', $state);
+
+        if (! $hasEnded) {
+            $this->turnTimerService->scheduleTimeoutJob($battle, $state);
+        }
+
         // turn_number is pulled from the in-memory result payload (engine move
         // output or swap state) rather than recomputing the next turn in SQL.
         BattleTurn::query()->create([

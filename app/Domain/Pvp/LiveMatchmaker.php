@@ -199,6 +199,8 @@ class LiveMatchmaker
             return $battle;
         });
 
+        $this->turnTimerService->scheduleTimeoutJob($battle, $state);
+
         broadcast(new PvpMatchFound(
             battleId: $battle->id,
             playerAId: $player1->id,
