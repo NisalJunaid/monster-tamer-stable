@@ -140,11 +140,7 @@ class PvpBattleUiController extends Controller
 
         $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
         $this->synchronizeLoggedTurn($state, $result, $turnNumber);
-        if ($hasEnded) {
-            $this->turnTimerService->refresh($state);
-        } else {
-            $this->turnTimerService->startTurn($battle, $state);
-        }
+        $this->turnTimerService->refresh($state);
 
         $battle->update([
             'meta_json' => $state,
@@ -154,6 +150,10 @@ class PvpBattleUiController extends Controller
         ]);
 
         $battle->setAttribute('meta_json', $state);
+
+        if (! $hasEnded) {
+            $this->turnTimerService->scheduleTimeoutJob($battle, $state);
+        }
 
         // turn_number is pulled from the in-memory result payload (engine move
         // output or swap state) rather than recomputing the next turn in SQL.
