@@ -24,6 +24,7 @@ class LiveMatchmaker
     public function __construct(
         private readonly BattleEngine $engine,
         private readonly PvpRankingService $rankingService,
+        private readonly TurnTimerService $turnTimerService,
     ) {
     }
 
@@ -180,6 +181,7 @@ class LiveMatchmaker
         $state = $this->engine->initialize($player1, $player2, $player1Party, $player2Party, $seed);
         $state['mode'] = $mode;
         $state['matched_at'] = now()->toIso8601String();
+        $this->turnTimerService->refresh($state);
 
         $battle = DB::transaction(function () use ($entry, $opponent, $player1, $player2, $seed, $mode, $state) {
             $battle = Battle::query()->create([
