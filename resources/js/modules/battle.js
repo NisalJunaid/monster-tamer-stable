@@ -1,79 +1,84 @@
 import axios from 'axios';
 
 
-
 // --- PvP Turn Timer (60s) ---
-// This file calls refreshPvpTimer(...) but the function may not exist.
-// Define it here so PvP updates don't crash and UI can keep updating.
-
+// Updates #pvp-turn-fill width + #pvp-turn-label text.
+// Expects state fields: turn_started_at, turn_ends_at, server_now, next_actor_id, viewer_user_id/user_id.
 let __pvpTimerInterval = null;
 
-function refreshPvpTimer(state) {
-  // Expect timestamps either at root OR nested under state.battle
-  const bar = document.getElementById('pvp-turn-fill');
-const label = document.getElementById('pvp-turn-label');
+function refreshPvpTimer(state = {}) {
+    const fill =
+        document.getElementById('pvp-turn-fill') ||
+        document.querySelector('[data-pvp-turn-timer-bar]');
+    const label =
+        document.getElementById('pvp-turn-label') ||
+        document.querySelector('[data-pvp-turn-timer-label]');
 
-  if (!bar) return;
+    if (!fill) return;
 
-  // Clear any prior interval so we don't stack timers
-  if (__pvpTimerInterval) {
-    clearInterval(__pvpTimerInterval);
-    __pvpTimerInterval = null;
-  }
-
-  const startedRaw = state?.turn_started_at ?? state?.battle?.turn_started_at ?? null;
-  const endsRaw = state?.turn_ends_at ?? state?.battle?.turn_ends_at ?? null;
-  const serverNowRaw = state?.server_now ?? state?.battle?.server_now ?? null;
-
-  const startedAt =
-  state?.battle?.turn_started_at ?? state?.turn_started_at ?? null;
-
-const endsAt =
-  state?.battle?.turn_ends_at ?? state?.turn_ends_at ?? null;
-
-
-  if (!startedAt || !endsAt || Number.isNaN(startedAt) || Number.isNaN(endsAt)) {
-    bar.style.width = '0%';
-    if (label) label.textContent = '';
-    return;
-  }
-
-  // Use server_now once to compute a stable offset against client clock
-  const serverNow = state?.server_now ?? state?.battle?.server_now ?? null;
-
-  const offsetMs = serverNow && !Number.isNaN(serverNow) ? (serverNow - Date.now()) : 0;
-
-  const viewerId =
-    state?.viewer_user_id ??
-    state?.viewer_id ??
-    state?.user_id ??
-    window.__viewerUserId ??
-    window.viewerUserId ??
-    null;
-
-  function tick() {
-    const now = Date.now() + offsetMs;
-    const total = Math.max(1, endsAt - startedAt);
-    const remaining = Math.max(0, endsAt - now);
-    const pct = Math.max(0, Math.min(100, (remaining / total) * 100));
-
-    bar.style.width = `${pct}%`;
-
-    if (label) {
-      // next actor id might live at root OR nested
-      const nextActor = state?.next_actor_id ?? state?.battle?.next_actor_id ?? null;
-      const isYourTurn = viewerId !== null && nextActor !== null && String(nextActor) === String(viewerId);
-      label.textContent = `${isYourTurn ? 'Your turn' : 'Opponent turn'} • ${Math.ceil(remaining / 1000)}s`;
+    // clear previous
+    if (__pvpTimerInterval) {
+        clearInterval(__pvpTimerInterval);
+        __pvpTimerInterval = null;
     }
 
-    if (remaining <= 0 && __pvpTimerInterval) {
-      clearInterval(__pvpTimerInterval);
-      __pvpTimerInterval = null;
-    }
-  }
+    const startedAtRaw = state.turn_started_at ?? state.battle?.turn_started_at ?? null;
+    const endsAtRaw = state.turn_ends_at ?? state.battle?.turn_ends_at ?? null;
+    const serverNowRaw = state.server_now ?? state.battle?.server_now ?? null;
 
-  tick();
-  __pvpTimerInterval = setInterval(tick, 200);
+    const startedAt = startedAtRaw ? new Date(startedAtRaw).getTime() : NaN;
+    const endsAt = endsAtRaw ? new Date(endsAtRaw).getTime() : NaN;
+
+    // If we don't have valid timestamps, reset UI
+    if (!Number.isFinite(startedAt) || !Number.isFinite(endsAt) || endsAt <= startedAt) {
+        fill.style.width = '0%';
+        if (label) label.textContent = '';
+        return;
+    }
+
+    // stable server/client offset
+    const serverNow = serverNowRaw ? new Date(serverNowRaw).getTime() : NaN;
+    const offsetMs = Number.isFinite(serverNow) ? (serverNow - Date.now()) : 0;
+
+    const viewerId =
+        state.viewer_user_id ??
+        state.viewer_id ??
+        state.user_id ??
+        window.__viewerUserId ??
+        window.viewerUserId ??
+        null;
+
+    const nextActorId =
+        state.next_actor_id ??
+        state.battle?.next_actor_id ??
+        state.next_actor_user_id ??
+        state.battle?.next_actor_user_id ??
+        null;
+
+    function tick() {
+        const now = Date.now() + offsetMs;
+        const total = Math.max(1, endsAt - startedAt);
+        const remaining = Math.max(0, endsAt - now);
+        const pct = Math.max(0, Math.min(100, (remaining / total) * 100));
+
+        fill.style.width = `${pct}%`;
+
+        if (label) {
+            let who = 'Turn';
+            if (viewerId !== null && nextActorId !== null) {
+                who = String(nextActorId) === String(viewerId) ? 'Your turn' : 'Opponent turn';
+            }
+            label.textContent = `${who} • ${Math.ceil(remaining / 1000)}s`;
+        }
+
+        if (remaining <= 0 && __pvpTimerInterval) {
+            clearInterval(__pvpTimerInterval);
+            __pvpTimerInterval = null;
+        }
+    }
+
+    tick();
+    __pvpTimerInterval = setInterval(tick, 200);
 }
 
 
