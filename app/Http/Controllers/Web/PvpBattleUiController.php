@@ -384,9 +384,11 @@ class PvpBattleUiController extends Controller
         $battle->loadMissing(['player1', 'player2']);
         $state = $battle->meta_json ?? [];
         $participants = $state['participants'] ?? [];
+        $viewerId = $viewer->id;
 
-        $opponentUser = $battle->player1_id === $viewer->id ? $battle->player2 : $battle->player1;
-        $viewerSide = $participants[$viewer->id] ?? ['monsters' => [], 'active_index' => 0];
+        // Always resolve the viewer's side using their authenticated id rather than turn order.
+        $opponentUser = $battle->player1_id === $viewerId ? $battle->player2 : $battle->player1;
+        $viewerSide = $participants[$viewerId] ?? ['monsters' => [], 'active_index' => 0];
         $opponentSide = $opponentUser ? ($participants[$opponentUser->id] ?? ['monsters' => [], 'active_index' => 0]) : ['monsters' => [], 'active_index' => 0];
 
         $viewerSide['monsters'] = $this->hydrateParticipantMonsters($viewerSide['monsters'] ?? [], $viewer);
@@ -396,7 +398,8 @@ class PvpBattleUiController extends Controller
             $state['participants'][$opponentUser->id] = $opponentSide;
         }
 
-        $state['participants'][$viewer->id] = $viewerSide;
+        // player_monsters is viewer-owned and must always be present so switch UI can render even on opponent's turn.
+        $state['participants'][$viewerId] = $viewerSide;
 
         return $state;
     }

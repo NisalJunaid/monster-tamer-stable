@@ -605,8 +605,24 @@ export function initBattleLive(root = document) {
         }
 
         const viewerSpecificState = payload.viewer_state || payload.viewer_states?.[viewerId];
+        const incomingState = viewerSpecificState || payload.state;
 
-        battleState = viewerSpecificState || payload.state || battleState;
+        if (incomingState) {
+            const merged = {
+                ...battleState,
+                ...incomingState,
+                battle: {
+                    ...(battleState?.battle || {}),
+                    ...(incomingState?.battle || {}),
+                },
+            };
+
+            if (!incomingState?.battle?.player_monsters && battleState?.battle?.player_monsters) {
+                merged.battle.player_monsters = battleState.battle.player_monsters;
+            }
+
+            battleState = merged;
+        }
         battleStatus = payload.status || payload.battle?.status || battleStatus;
         winnerId = payload.winner_user_id ?? payload.battle?.winner_user_id ?? winnerId;
         render();
