@@ -1,5 +1,84 @@
 import axios from 'axios';
 
+
+
+// --- PvP Turn Timer (60s) ---
+// This file calls refreshPvpTimer(...) but the function may not exist.
+// Define it here so PvP updates don't crash and UI can keep updating.
+
+let __pvpTimerInterval = null;
+
+function refreshPvpTimer(state) {
+  // Expect timestamps either at root OR nested under state.battle
+  const bar = document.getElementById('pvp-turn-fill');
+const label = document.getElementById('pvp-turn-label');
+
+  if (!bar) return;
+
+  // Clear any prior interval so we don't stack timers
+  if (__pvpTimerInterval) {
+    clearInterval(__pvpTimerInterval);
+    __pvpTimerInterval = null;
+  }
+
+  const startedRaw = state?.turn_started_at ?? state?.battle?.turn_started_at ?? null;
+  const endsRaw = state?.turn_ends_at ?? state?.battle?.turn_ends_at ?? null;
+  const serverNowRaw = state?.server_now ?? state?.battle?.server_now ?? null;
+
+  const startedAt =
+  state?.battle?.turn_started_at ?? state?.turn_started_at ?? null;
+
+const endsAt =
+  state?.battle?.turn_ends_at ?? state?.turn_ends_at ?? null;
+
+
+  if (!startedAt || !endsAt || Number.isNaN(startedAt) || Number.isNaN(endsAt)) {
+    bar.style.width = '0%';
+    if (label) label.textContent = '';
+    return;
+  }
+
+  // Use server_now once to compute a stable offset against client clock
+  const serverNow = state?.server_now ?? state?.battle?.server_now ?? null;
+
+  const offsetMs = serverNow && !Number.isNaN(serverNow) ? (serverNow - Date.now()) : 0;
+
+  const viewerId =
+    state?.viewer_user_id ??
+    state?.viewer_id ??
+    state?.user_id ??
+    window.__viewerUserId ??
+    window.viewerUserId ??
+    null;
+
+  function tick() {
+    const now = Date.now() + offsetMs;
+    const total = Math.max(1, endsAt - startedAt);
+    const remaining = Math.max(0, endsAt - now);
+    const pct = Math.max(0, Math.min(100, (remaining / total) * 100));
+
+    bar.style.width = `${pct}%`;
+
+    if (label) {
+      // next actor id might live at root OR nested
+      const nextActor = state?.next_actor_id ?? state?.battle?.next_actor_id ?? null;
+      const isYourTurn = viewerId !== null && nextActor !== null && String(nextActor) === String(viewerId);
+      label.textContent = `${isYourTurn ? 'Your turn' : 'Opponent turn'} • ${Math.ceil(remaining / 1000)}s`;
+    }
+
+    if (remaining <= 0 && __pvpTimerInterval) {
+      clearInterval(__pvpTimerInterval);
+      __pvpTimerInterval = null;
+    }
+  }
+
+  tick();
+  __pvpTimerInterval = setInterval(tick, 200);
+}
+
+
+
+
 const escapeHtml = (value = '') => `${value}`.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
 function getAudio(id) {
@@ -27,35 +106,31 @@ function playSound(audioEl) {
     }
 }
 
-function isPvpMode(root) {
-    return (root?.dataset?.mode || '') === 'pvp';
+function isPvpMode() {
+  const root =
+    document.getElementById('wild-battle-page') ||
+    document.querySelector('[data-mode="pvp"]');
+
+  return root?.dataset?.mode === 'pvp';
 }
+
 
 function setPvpInputLocked(locked) {
-    pvpInputLocked = Boolean(locked);
-    const overlay = document.getElementById('pvp-wait-overlay');
-    if (overlay) {
-        overlay.classList.remove('hidden');
-        overlay.classList.toggle('is-hidden', !locked);
-    }
+  pvpInputLocked = Boolean(locked);
 
-    const root = document.getElementById('battle-root');
+  const overlay = document.getElementById('pvp-wait-overlay');
+  if (overlay) {
+    overlay.classList.toggle('is-hidden', !locked);
+  }
 
-    document.querySelectorAll('.js-battle-main-action, .js-battle-move, .js-switch-monster, button, a').forEach((el) => {
-        if (root && !root.contains(el)) return;
-
-        if (
-            el.classList.contains('js-battle-main-action') ||
-            el.classList.contains('js-battle-move') ||
-            el.classList.contains('js-switch-monster')
-        ) {
-            el.toggleAttribute('disabled', locked);
-            el.classList.toggle('is-disabled', locked);
-            if (locked) el.setAttribute('aria-disabled', 'true');
-            else el.removeAttribute('aria-disabled');
-        }
+  document
+    .querySelectorAll('.js-battle-main-action, .js-battle-move, .js-switch-monster')
+    .forEach((el) => {
+      el.disabled = locked;
+      el.classList.toggle('is-disabled', locked);
     });
 }
+
 
 const turnChangeSound = () => getAudio('pvp-turn-change-sound');
 
@@ -66,9 +141,16 @@ function applyPvpTurnUi(state = {}) {
         return;
     }
 
-    const viewerId = state.viewer_user_id ?? state.viewer_id ?? state.user_id;
-    const nextActorId =
-        state.battle?.next_actor_user_id ?? state.next_actor_user_id ?? state.battle?.next_actor_id ?? state.next_actor_id;
+    const viewerId =
+  state.viewer_user_id ??
+  state.user_id ??
+  window.__viewerUserId ??
+  null;
+
+const nextActorId =
+  state.next_actor_id ??
+  state.battle?.next_actor_id ??
+  null;
 
     if (!viewerId || !nextActorId) return;
 
@@ -611,8 +693,22 @@ export function initBattleLive(root = document) {
         battleStatus = payload.status || payload.battle?.status || battleStatus;
         winnerId = payload.winner_user_id ?? payload.battle?.winner_user_id ?? winnerId;
         render();
-        refreshPvpTimer(payload.state || battleState);
-        applyPvpTurnUi(payload.state || battleState);
+        
+        const timerState = {
+  ...(payload.state || battleState),
+  // keep root fields like server_now / viewer_user_id if they exist on payload
+  server_now: (payload.server_now ?? (payload.state || battleState)?.server_now),
+  viewer_user_id: (payload.viewer_user_id ?? (payload.state || battleState)?.viewer_user_id),
+  user_id: (payload.user_id ?? (payload.state || battleState)?.user_id),
+  battle: {
+    ...((payload.state || battleState)?.battle || {}),
+    ...(payload.battle || {}),
+  },
+};
+
+refreshPvpTimer(timerState);
+applyPvpTurnUi(timerState);
+
 
         const isActive = battleStatus === 'active';
         const isYourTurn = isActive && (battleState.next_actor_id ?? null) === viewerId;

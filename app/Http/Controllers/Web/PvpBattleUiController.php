@@ -117,75 +117,77 @@ class PvpBattleUiController extends Controller
     }
 
     private function applyAndRespond(Battle $battle, User $actor, array $action): JsonResponse
-    {
-        if ($battle->status !== 'active') {
-            return response()->json(['message' => 'Battle is not active.'], Response::HTTP_CONFLICT);
-        }
-
-        $meta = $battle->meta_json ?? [];
-        $nextActorId = $meta['next_actor_user_id'] ?? $meta['next_actor_id'] ?? null;
-
-        if ((int) $nextActorId !== $actor->id) {
-            return response()->json(['message' => 'Not your turn'], Response::HTTP_CONFLICT);
-        }
-
-        try {
-            if ($action['type'] === 'swap') {
-                [$state, $result, $hasEnded, $winnerId] = $this->applySwap($battle, $actor, $action);
-            } else {
-                [$state, $result, $hasEnded, $winnerId] = $this->engine->applyAction($battle, $actor->id, $action);
-            }
-        } catch (InvalidArgumentException $exception) {
-            return response()->json(['message' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        $state = $this->engine->hydrateUiState($state);
-
-        $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
-        $this->synchronizeLoggedTurn($state, $result, $turnNumber);
-        $this->turnTimerService->refresh($state);
-        $state['next_actor_user_id'] = $this->resolveNextActorUserId($state, $battle);
-
-        $battle->update([
-            'meta_json' => $state,
-            'status' => $hasEnded ? 'completed' : 'active',
-            'winner_user_id' => $winnerId,
-            'ended_at' => $hasEnded ? now() : null,
-        ]);
-
-        $battle->setAttribute('meta_json', $state);
-
-        if (! $hasEnded) {
-            $this->turnTimerService->scheduleTimeoutJob($battle, $state);
-        }
-
-        // turn_number is pulled from the in-memory result payload (engine move
-        // output or swap state) rather than recomputing the next turn in SQL.
-        BattleTurn::query()->create([
-            'battle_id' => $battle->id,
-            'turn_number' => $turnNumber,
-            'actor_user_id' => $actor->id,
-            'action_json' => $action,
-            'result_json' => $result,
-        ]);
-
-        if ($hasEnded && $winnerId !== null) {
-            $this->rankingService->handleBattleCompletion($battle->fresh());
-        }
-
-        $battle->refresh();
-
-        // After PvP switch, broadcast BattleUpdated so opponent sees the new active monster in real-time.
-        $this->broadcastBattleUpdate(
-            $battle,
-            $state,
-            $hasEnded ? 'completed' : 'active',
-            $state['next_actor_id'] ?? null,
-            $winnerId,
-        );
-
-        return response()->json($this->buildPayload($battle->fresh(), $actor));
+{
+    if ($battle->status !== 'active') {
+        return response()->json(['message' => 'Battle is not active.'], Response::HTTP_CONFLICT);
     }
+
+    $meta = $battle->meta_json ?? [];
+    $nextActorId = $meta['next_actor_id'] ?? null;
+
+    if ((int) $nextActorId !== (int) $actor->id) {
+        return response()->json(['message' => 'Not your turn'], Response::HTTP_CONFLICT);
+    }
+
+    try {
+        if (($action['type'] ?? null) === 'swap') {
+            [$state, $result, $hasEnded, $winnerId] = $this->applySwap($battle, $actor, $action);
+        } else {
+            [$state, $result, $hasEnded, $winnerId] = $this->engine->applyAction($battle, $actor->id, $action);
+        }
+    } catch (InvalidArgumentException $exception) {
+        return response()->json(['message' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    $state = $this->engine->hydrateUiState($state);
+
+    // IMPORTANT:
+    // - DB turn_number must be derived from TurnNumberService (not state['turn'])
+    // - State already contains next_actor_id (user id), so don't try to compute next_actor_user_id.
+    $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
+    $this->synchronizeLoggedTurn($state, $result, $turnNumber);
+
+    // Refresh per-turn timer window (used by UI + timeout job)
+    $this->turnTimerService->refresh($state);
+
+    $battle->update([
+        'meta_json' => $state,
+        'status' => $hasEnded ? 'completed' : 'active',
+        'winner_user_id' => $winnerId,
+        'ended_at' => $hasEnded ? now() : null,
+    ]);
+
+    $battle->setAttribute('meta_json', $state);
+
+    if (! $hasEnded) {
+        $this->turnTimerService->scheduleTimeoutJob($battle, $state);
+    }
+
+    BattleTurn::query()->create([
+        'battle_id' => $battle->id,
+        'turn_number' => $turnNumber,
+        'actor_user_id' => $actor->id,
+        'action_json' => $action,
+        'result_json' => $result,
+    ]);
+
+    if ($hasEnded && $winnerId !== null) {
+        $this->rankingService->handleBattleCompletion($battle->fresh());
+    }
+
+    $battle->refresh();
+
+    $this->broadcastBattleUpdate(
+        $battle,
+        $state,
+        $hasEnded ? 'completed' : 'active',
+        $state['next_actor_id'] ?? null,
+        $winnerId,
+    );
+
+    return response()->json($this->buildPayload($battle->fresh(), $actor));
+}
+
 
     private function synchronizeLoggedTurn(array &$state, array &$result, int $turnNumber): void
     {
@@ -421,6 +423,40 @@ class PvpBattleUiController extends Controller
         }
 
         return $participants;
+    }
+
+     private function resolveNextActorUserId(array $state, Battle $battle): ?int
+    {
+        // If already explicitly set, trust it.
+        if (isset($state['next_actor_user_id']) && is_numeric($state['next_actor_user_id'])) {
+            return (int) $state['next_actor_user_id'];
+        }
+
+        $next = $state['next_actor_id'] ?? null;
+
+        if ($next === null) {
+            return null;
+        }
+
+        // If it's already one of the actual participant user ids, return as-is.
+        if (is_numeric($next)) {
+            $nextInt = (int) $next;
+
+            if ($nextInt === (int) $battle->player1_id || $nextInt === (int) $battle->player2_id) {
+                return $nextInt;
+            }
+
+            // Back-compat: if next_actor_id is 1/2 meaning "player slot".
+            if ($nextInt === 1) {
+                return $battle->player1_id ? (int) $battle->player1_id : null;
+            }
+
+            if ($nextInt === 2) {
+                return $battle->player2_id ? (int) $battle->player2_id : null;
+            }
+        }
+
+        return null;
     }
 
     private function buildPlayerNames(Battle $battle): array
