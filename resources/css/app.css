@@ -13,3 +13,63 @@
     transform: translateY(-1px);
     box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
 }
+
+#battle-root {
+    position: relative;
+}
+
+.pvp-wait-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+    pointer-events: auto;
+    opacity: 1;
+    transition: opacity 0.25s ease;
+}
+
+.pvp-wait-overlay.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.pvp-wait-overlay__card {
+    background: rgba(20, 20, 20, 0.92);
+    color: #fff;
+    border-radius: 12px;
+    padding: 16px 18px;
+    min-width: 220px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.pvp-wait-overlay__spinner {
+    width: 22px;
+    height: 22px;
+    margin: 0 auto 10px auto;
+    border-radius: 999px;
+    border: 3px solid rgba(255, 255, 255, 0.25);
+    border-top-color: rgba(255, 255, 255, 0.9);
+    animation: pvpSpin 0.85s linear infinite;
+}
+
+@keyframes pvpSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.pvp-wait-overlay__title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.pvp-wait-overlay__subtitle {
+    font-size: 12px;
+    opacity: 0.85;
+}

@@ -123,9 +123,10 @@ class PvpBattleUiController extends Controller
         }
 
         $meta = $battle->meta_json ?? [];
+        $nextActorId = $meta['next_actor_user_id'] ?? $meta['next_actor_id'] ?? null;
 
-        if (($meta['next_actor_id'] ?? null) !== $actor->id) {
-            return response()->json(['message' => 'It is not your turn yet.'], Response::HTTP_CONFLICT);
+        if ((int) $nextActorId !== $actor->id) {
+            return response()->json(['message' => 'Not your turn'], Response::HTTP_CONFLICT);
         }
 
         try {
@@ -141,6 +142,7 @@ class PvpBattleUiController extends Controller
         $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
         $this->synchronizeLoggedTurn($state, $result, $turnNumber);
         $this->turnTimerService->refresh($state);
+        $state['next_actor_user_id'] = $this->resolveNextActorUserId($state, $battle);
 
         $battle->update([
             'meta_json' => $state,
@@ -297,12 +299,7 @@ class PvpBattleUiController extends Controller
     private function buildPayload(Battle $battle, User $viewer): array
     {
         $battle->loadMissing(['player1', 'player2']);
-        $state = $this->hydrateStateForViewer($battle, $viewer);
-        $battle->setAttribute('meta_json', $state);
-
-        $wildState = $this->adapter->toWildUiState($battle, $viewer);
-        $wildState['turn_started_at'] = $state['turn_started_at'] ?? null;
-        $wildState['turn_ends_at'] = $state['turn_ends_at'] ?? null;
+        $wildState = $this->buildWildStateForViewer($battle, $viewer);
         $opponent = $wildState['wild'] ?? [];
 
         \Log::info('PVP UI state for viewer', [
@@ -400,8 +397,28 @@ class PvpBattleUiController extends Controller
 
         // player_monsters is viewer-owned and must always be present so switch UI can render even on opponent's turn.
         $state['participants'][$viewerId] = $viewerSide;
+        $state['next_actor_user_id'] = $this->resolveNextActorUserId($state, $battle);
 
         return $state;
+    }
+
+    private function buildWildStateForViewer(Battle $battle, User $viewer): array
+    {
+        $originalMeta = $battle->getAttribute('meta_json');
+        $state = $this->hydrateStateForViewer($battle, $viewer);
+        $state['next_actor_user_id'] = $this->resolveNextActorUserId($state, $battle);
+
+        $battle->setAttribute('meta_json', $state);
+
+        $wildState = $this->adapter->toWildUiState($battle, $viewer);
+        $battle->setAttribute('meta_json', $originalMeta);
+        $wildState['turn_started_at'] = $state['turn_started_at'] ?? null;
+        $wildState['turn_ends_at'] = $state['turn_ends_at'] ?? null;
+        $wildState['next_actor_user_id'] = $state['next_actor_user_id'] ?? null;
+        $wildState['viewer_user_id'] = $viewer->id;
+        $wildState['viewer_actor_id'] = $this->resolveViewerActorId($battle, $viewer);
+
+        return $wildState;
     }
 
     private function buildViewerStates(Battle $battle): array
@@ -415,7 +432,7 @@ class PvpBattleUiController extends Controller
                 continue;
             }
 
-            $participants[$participant->id] = $this->hydrateStateForViewer($battle, $participant);
+            $participants[$participant->id] = $this->buildWildStateForViewer($battle, $participant);
         }
 
         return $participants;
@@ -444,5 +461,47 @@ class PvpBattleUiController extends Controller
             viewerStates: $this->buildViewerStates($battle),
             players: $this->buildPlayerNames($battle),
         ));
+    }
+
+    private function resolveNextActorUserId(array $state, Battle $battle): ?int
+    {
+        $nextActorId = $state['next_actor_user_id'] ?? $state['next_actor_id'] ?? null;
+
+        if ($nextActorId === null) {
+            return null;
+        }
+
+        $participants = array_keys($state['participants'] ?? []);
+        $participantMatch = collect($participants)
+            ->first(fn ($participantId) => (int) $participantId === (int) $nextActorId);
+
+        if ($participantMatch !== null) {
+            return (int) $participantMatch;
+        }
+
+        $mappedByActor = match ((int) $nextActorId) {
+            1 => $battle->player1_id,
+            2 => $battle->player2_id,
+            default => null,
+        };
+
+        if ($mappedByActor !== null) {
+            return (int) $mappedByActor;
+        }
+
+        return is_numeric($nextActorId) ? (int) $nextActorId : null;
+    }
+
+    private function resolveViewerActorId(Battle $battle, User $viewer): ?int
+    {
+        if ($battle->player1_id === $viewer->id) {
+            return 1;
+        }
+
+        if ($battle->player2_id === $viewer->id) {
+            return 2;
+        }
+
+        return null;
     }
 }
