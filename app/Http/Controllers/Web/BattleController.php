@@ -107,6 +107,8 @@ class BattleController extends Controller
             return back()->withErrors(['action' => $exception->getMessage()]);
         }
 
+        $state = $this->engine->hydrateUiState($state);
+
         $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
         $this->synchronizeLoggedTurn($state, $result, $turnNumber);
 

@@ -139,6 +139,8 @@ class PvpBattleUiController extends Controller
             return response()->json(['message' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $state = $this->engine->hydrateUiState($state);
+
         $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
         $this->synchronizeLoggedTurn($state, $result, $turnNumber);
         $this->turnTimerService->refresh($state);
