@@ -243,6 +243,25 @@ const renderTeamList = (monsters = [], activeId = null, role = 'you') => {
         .join('');
 };
 
+const isStateRenderable = (state, viewerId) => {
+    if (!state || typeof state !== 'object') return false;
+
+    const participants = state.participants;
+    if (!participants) return false;
+
+    const participant = participants[viewerId];
+    if (!participant) return false;
+
+    const monsters = participant.monsters;
+    if (!Array.isArray(monsters) || monsters.length === 0) return false;
+
+    const activeIndex = Number.isInteger(participant.active_index) ? participant.active_index : 0;
+    const activeMonster = monsters[activeIndex];
+    if (!activeMonster) return false;
+
+    return 'moves' in activeMonster;
+};
+
 const renderCommands = (state, viewerId) => {
     const participant = state.participants?.[viewerId];
     const isActive = (state?.status || 'active') === 'active';
@@ -405,6 +424,8 @@ export function initBattleLive(root = document) {
     let currentEchoState = window.__echoConnectionState || (window.Echo ? 'connecting' : 'disconnected');
     let initialEventTimeout = null;
     let waitingForResolution = false;
+    let lastHydrationRequest = 0;
+    let hydrationRetryTimer = null;
 
     const refreshPvpTimer = (stateOverride = null) => {
         const state = stateOverride || battleState || {};
@@ -641,7 +662,7 @@ export function initBattleLive(root = document) {
             });
     };
 
-    const applyUpdate = (payload, { fromEvent = false } = {}) => {
+    function applyUpdate(payload, { fromEvent = false } = {}) {
         if (!payload) {
             return;
         }
@@ -669,8 +690,9 @@ export function initBattleLive(root = document) {
 
         const viewerSpecificState = payload.viewer_state || payload.viewer_states?.[viewerId];
         const incomingState = viewerSpecificState || payload.state;
+        const isRenderable = isStateRenderable(incomingState, viewerId);
 
-        if (incomingState) {
+        if (incomingState && isRenderable) {
             const merged = {
                 ...battleState,
                 ...incomingState,
@@ -685,6 +707,13 @@ export function initBattleLive(root = document) {
             }
 
             battleState = merged;
+        } else if (incomingState && !isRenderable) {
+            console.warn('Received non-renderable battle state; preserving existing UI state.');
+            const now = Date.now();
+            if (now - lastHydrationRequest > 2000) {
+                lastHydrationRequest = now;
+                fetchBattleState();
+            }
         }
         battleStatus = payload.status || payload.battle?.status || battleStatus;
         winnerId = payload.winner_user_id ?? payload.battle?.winner_user_id ?? winnerId;
@@ -703,25 +732,49 @@ export function initBattleLive(root = document) {
         if (!isActive) {
             scheduleCompletion();
         }
-    };
+    }
 
-    const fetchBattleState = () =>
-        axios
+    function fetchBattleState({ allowRetry = true } = {}) {
+        return axios
             .get(`/battles/${battleId}/state`, { headers: { Accept: 'application/json' } })
             .then((response) => {
                 const data = response.data || {};
-
-                applyUpdate({
-                    state: data.state,
+                const incoming = {
                     status: data.battle?.status,
                     winner_user_id: data.battle?.winner_user_id,
                     players: data.players,
+                };
+
+                if (data.state && !isStateRenderable(data.state, viewerId)) {
+                    if (hydrationRetryTimer) {
+                        clearTimeout(hydrationRetryTimer);
+                    }
+
+                    if (allowRetry) {
+                        hydrationRetryTimer = window.setTimeout(() => {
+                            hydrationRetryTimer = null;
+                            fetchBattleState({ allowRetry: false });
+                        }, 250);
+                    } else {
+                        setStatus('Sync issue — refresh recommended');
+                    }
+
+                    applyUpdate(incoming);
+                    return;
+                }
+
+                hydrationRetryTimer = null;
+
+                applyUpdate({
+                    ...incoming,
+                    state: data.state,
                 });
             })
             .catch((error) => {
                 console.error('Battle polling failed', error);
                 setStatus('Unable to sync battle right now.');
             });
+    }
 
     const attemptStopPolling = (force = false) => {
         const canStop = force || (subscriptionSucceeded && eventReceived);
