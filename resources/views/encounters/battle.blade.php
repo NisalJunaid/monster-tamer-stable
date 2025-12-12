@@ -130,7 +130,7 @@
                         $switchId = $monster['player_monster_id'] ?? $monster['id'] ?? $monster['instance_id'] ?? null;
                     @endphp
                     @if($switchId !== null && $monster['current_hp'] > 0 && ($monster['id'] ?? $switchId) !== $activeId)
-                        <button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left"
+                        <button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left js-battle-move"
                                 data-player-monster-id="{{ $switchId }}"
                                 data-switch-id="{{ $switchId }}">
                             <div class="font-semibold">{{ $monster['name'] }}</div>
@@ -174,7 +174,7 @@
 
     <audio
         id="battle-click-move"
-        src="{{ asset('audio/ui-move-click.mp3') }}"
+        src="{{ asset('audio/ui-selection-click.mp3') }}"
         preload="auto"
     ></audio>
 </div>

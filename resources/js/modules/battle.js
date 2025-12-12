@@ -9,6 +9,8 @@ function getAudio(id) {
 
 let mainClickSound = null;
 let moveClickSound = null;
+let lastNextActorUserId = null;
+let pvpInputLocked = false;
 
 function initBattleSounds() {
     mainClickSound = getAudio('battle-click-main') || getAudio('battle-click-sound') || null;
@@ -25,6 +27,63 @@ function playSound(audioEl) {
     }
 }
 
+function isPvpMode(root) {
+    return (root?.dataset?.mode || '') === 'pvp';
+}
+
+function setPvpInputLocked(locked) {
+    pvpInputLocked = Boolean(locked);
+    const overlay = document.getElementById('pvp-wait-overlay');
+    if (overlay) {
+        overlay.classList.remove('hidden');
+        overlay.classList.toggle('is-hidden', !locked);
+    }
+
+    const root = document.getElementById('battle-root');
+
+    document.querySelectorAll('.js-battle-main-action, .js-battle-move, .js-switch-monster, button, a').forEach((el) => {
+        if (root && !root.contains(el)) return;
+
+        if (
+            el.classList.contains('js-battle-main-action') ||
+            el.classList.contains('js-battle-move') ||
+            el.classList.contains('js-switch-monster')
+        ) {
+            el.toggleAttribute('disabled', locked);
+            el.classList.toggle('is-disabled', locked);
+            if (locked) el.setAttribute('aria-disabled', 'true');
+            else el.removeAttribute('aria-disabled');
+        }
+    });
+}
+
+const turnChangeSound = () => getAudio('pvp-turn-change-sound');
+
+function applyPvpTurnUi(state = {}) {
+    const root = document.getElementById('battle-root');
+    if (!root || !isPvpMode(root)) {
+        lastNextActorUserId = null;
+        return;
+    }
+
+    const viewerId = state.viewer_user_id ?? state.viewer_id ?? state.user_id;
+    const nextActorId =
+        state.battle?.next_actor_user_id ?? state.next_actor_user_id ?? state.battle?.next_actor_id ?? state.next_actor_id;
+
+    if (!viewerId || !nextActorId) return;
+
+    if (lastNextActorUserId !== null && String(lastNextActorUserId) !== String(nextActorId)) {
+        playSound(turnChangeSound());
+    }
+    lastNextActorUserId = nextActorId;
+
+    const isYourTurn = String(nextActorId) === String(viewerId);
+    setPvpInputLocked(!isYourTurn);
+
+    const subtitle = document.querySelector('#pvp-wait-overlay .pvp-wait-overlay__subtitle');
+    if (subtitle) subtitle.textContent = isYourTurn ? 'Your turn' : 'Their turn';
+}
+
 export function wireBattleSounds(root) {
     if (!root) return;
 
@@ -35,8 +94,6 @@ export function wireBattleSounds(root) {
         if (!target) return;
 
         const moveBtn = target.closest('.js-battle-move');
-        const mainAction = target.closest('.js-battle-main-action');
-
         if (moveBtn) {
             playSound(moveClickSound);
 
@@ -44,9 +101,11 @@ export function wireBattleSounds(root) {
             setTimeout(() => {
                 moveBtn.classList.remove('is-pressed');
             }, 120);
+            return;
         }
 
-        if (mainAction && (!moveBtn || moveClickSound !== mainClickSound)) {
+        const mainAction = target.closest('.js-battle-main-action');
+        if (mainAction) {
             playSound(mainClickSound);
         }
     });
@@ -451,8 +510,12 @@ export function initBattleLive(root = document) {
         waitingForResolution = waiting;
         toggleControls(waiting);
 
-        if (waitingOverlay) {
+        const battleRoot = document.getElementById('battle-root');
+        if (waitingOverlay && !isPvpMode(battleRoot)) {
             waitingOverlay.classList.toggle('hidden', !waiting);
+            waitingOverlay.classList.toggle('is-hidden', !waiting);
+        } else if (waitingOverlay && isPvpMode(battleRoot)) {
+            setPvpInputLocked(pvpInputLocked || waiting);
         }
     };
 
@@ -548,6 +611,8 @@ export function initBattleLive(root = document) {
         battleStatus = payload.status || payload.battle?.status || battleStatus;
         winnerId = payload.winner_user_id ?? payload.battle?.winner_user_id ?? winnerId;
         render();
+        refreshPvpTimer(payload.state || battleState);
+        applyPvpTurnUi(payload.state || battleState);
 
         const isActive = battleStatus === 'active';
         const isYourTurn = isActive && (battleState.next_actor_id ?? null) === viewerId;
@@ -659,12 +724,19 @@ export function initBattleLive(root = document) {
             return;
         }
 
+        const waitOverlay = document.getElementById('pvp-wait-overlay');
+        if (waitOverlay && !waitOverlay.classList.contains('is-hidden')) {
+            return;
+        }
+
         setWaitingState(true);
         setStatus('Submitting action...');
         submitAction(target);
     });
 
     render();
+    refreshPvpTimer(battleState);
+    applyPvpTurnUi(battleState);
 
     if (battleStatus !== 'active') {
         scheduleCompletion();
