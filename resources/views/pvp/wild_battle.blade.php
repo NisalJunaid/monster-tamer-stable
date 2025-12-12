@@ -73,6 +73,11 @@
         border-radius: 9999px;
         transition: width 0.2s ease;
     }
+
+    #wild-battle-page {
+        position: relative;
+    }
+
 </style>
 @php
     $livePlayers = [
@@ -96,6 +101,14 @@
     <script type="application/json" data-wild-battle-state>
         {!! json_encode(array_merge($payload, ['mode' => 'pvp'])) !!}
     </script>
+
+    <div id="pvp-wait-overlay" class="pvp-wait-overlay is-hidden" aria-live="polite" data-battle-waiting-overlay>
+      <div class="pvp-wait-overlay__card">
+        <div class="pvp-wait-overlay__spinner" aria-hidden="true"></div>
+        <div class="pvp-wait-overlay__title">Waiting for opponent…</div>
+        <div class="pvp-wait-overlay__subtitle">Their turn</div>
+      </div>
+    </div>
 
     <div class="bg-white shadow rounded-xl p-5 flex items-center justify-between">
         <div>
