@@ -20,7 +20,7 @@ class WildBattleController extends Controller
 
         return view('encounters.battle', [
             'ticket' => $battleTicket,
-            'state' => $battleTicket->battle_state,
+            'state' => $this->battleService->presentBattleState($request->user(), $battleTicket),
         ]);
     }
 
@@ -37,7 +37,7 @@ class WildBattleController extends Controller
         );
 
         return response()->json([
-            'battle' => $updated->battle_state,
+            'battle' => $this->battleService->presentBattleState($request->user(), $updated),
             'ticket' => $updated,
         ]);
     }
@@ -53,7 +53,7 @@ class WildBattleController extends Controller
         $updated = $this->battleService->actSwitch($request->user(), $ticket, (int) $validated['player_monster_id']);
 
         return response()->json([
-            'battle' => $updated->battle_state,
+            'battle' => $this->battleService->presentBattleState($request->user(), $updated),
             'ticket' => $updated,
         ]);
     }
@@ -63,7 +63,7 @@ class WildBattleController extends Controller
         $result = $this->battleService->attemptTame($request->user(), $ticket);
 
         return response()->json([
-            'battle' => $result['ticket']->battle_state,
+            'battle' => $this->battleService->presentBattleState($request->user(), $result['ticket']),
             'ticket' => $result['ticket'],
             'chance' => $result['chance'],
             'roll' => $result['roll'],
@@ -76,7 +76,7 @@ class WildBattleController extends Controller
         $updated = $this->battleService->run($request->user(), $ticket);
 
         return response()->json([
-            'battle' => $updated->battle_state,
+            'battle' => $this->battleService->presentBattleState($request->user(), $updated),
             'ticket' => $updated,
         ]);
     }
