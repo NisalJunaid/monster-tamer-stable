@@ -15,6 +15,12 @@ class TurnTimerService
         $state['turn_ends_at'] = $now->copy()->addSeconds(60)->toIso8601String();
     }
 
+    public function startTurn(Battle $battle, array &$state): void
+    {
+        $this->refresh($state);
+        $this->scheduleTimeoutJob($battle, $state);
+    }
+
     public function scheduleTimeoutJob(Battle $battle, array $state): void
     {
         $nextActorId = $state['next_actor_id'] ?? null;
