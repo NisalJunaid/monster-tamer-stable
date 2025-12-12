@@ -103,13 +103,13 @@ class PvpBattleUiController extends Controller
 
         $this->rankingService->handleBattleCompletion($battle->fresh());
 
-        broadcast(new BattleUpdated(
-            battleId: $battle->id,
-            state: $state,
-            status: 'completed',
-            nextActorId: null,
-            winnerUserId: $opponentId,
-        ));
+        $this->broadcastBattleUpdate(
+            $battle,
+            $state,
+            'completed',
+            null,
+            $opponentId,
+        );
 
         return response()->json($this->buildPayload($battle->fresh(), $viewer));
     }
@@ -163,13 +163,13 @@ class PvpBattleUiController extends Controller
         $battle->refresh();
 
         // After PvP switch, broadcast BattleUpdated so opponent sees the new active monster in real-time.
-        broadcast(new BattleUpdated(
-            battleId: $battle->id,
-            state: $state,
-            status: $hasEnded ? 'completed' : 'active',
-            nextActorId: $state['next_actor_id'] ?? null,
-            winnerUserId: $winnerId,
-        ));
+        $this->broadcastBattleUpdate(
+            $battle,
+            $state,
+            $hasEnded ? 'completed' : 'active',
+            $state['next_actor_id'] ?? null,
+            $winnerId,
+        );
 
         return response()->json($this->buildPayload($battle->fresh(), $actor));
     }
@@ -288,21 +288,7 @@ class PvpBattleUiController extends Controller
     private function buildPayload(Battle $battle, User $viewer): array
     {
         $battle->loadMissing(['player1', 'player2']);
-        $state = $battle->meta_json ?? [];
-        $participants = $state['participants'] ?? [];
-
-        $opponentUser = $battle->player1_id === $viewer->id ? $battle->player2 : $battle->player1;
-        $viewerSide = $participants[$viewer->id] ?? ['monsters' => [], 'active_index' => 0];
-        $opponentSide = $opponentUser ? ($participants[$opponentUser->id] ?? ['monsters' => [], 'active_index' => 0]) : ['monsters' => [], 'active_index' => 0];
-
-        $viewerSide['monsters'] = $this->hydrateParticipantMonsters($viewerSide['monsters'] ?? [], $viewer);
-
-        if ($opponentUser) {
-            $opponentSide['monsters'] = $this->hydrateParticipantMonsters($opponentSide['monsters'] ?? [], $opponentUser);
-            $state['participants'][$opponentUser->id] = $opponentSide;
-        }
-
-        $state['participants'][$viewer->id] = $viewerSide;
+        $state = $this->hydrateStateForViewer($battle, $viewer);
         $battle->setAttribute('meta_json', $state);
 
         $wildState = $this->adapter->toWildUiState($battle, $viewer);
@@ -378,5 +364,72 @@ class PvpBattleUiController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    private function hydrateStateForViewer(Battle $battle, User $viewer): array
+    {
+        $battle->loadMissing(['player1', 'player2']);
+        $state = $battle->meta_json ?? [];
+        $participants = $state['participants'] ?? [];
+        $viewerId = $viewer->id;
+
+        // Always resolve the viewer's side using their authenticated id rather than turn order.
+        $opponentUser = $battle->player1_id === $viewerId ? $battle->player2 : $battle->player1;
+        $viewerSide = $participants[$viewerId] ?? ['monsters' => [], 'active_index' => 0];
+        $opponentSide = $opponentUser ? ($participants[$opponentUser->id] ?? ['monsters' => [], 'active_index' => 0]) : ['monsters' => [], 'active_index' => 0];
+
+        $viewerSide['monsters'] = $this->hydrateParticipantMonsters($viewerSide['monsters'] ?? [], $viewer);
+
+        if ($opponentUser) {
+            $opponentSide['monsters'] = $this->hydrateParticipantMonsters($opponentSide['monsters'] ?? [], $opponentUser);
+            $state['participants'][$opponentUser->id] = $opponentSide;
+        }
+
+        // player_monsters is viewer-owned and must always be present so switch UI can render even on opponent's turn.
+        $state['participants'][$viewerId] = $viewerSide;
+
+        return $state;
+    }
+
+    private function buildViewerStates(Battle $battle): array
+    {
+        $battle->loadMissing(['player1', 'player2']);
+
+        $participants = [];
+
+        foreach ([$battle->player1, $battle->player2] as $participant) {
+            if (! $participant) {
+                continue;
+            }
+
+            $participants[$participant->id] = $this->hydrateStateForViewer($battle, $participant);
+        }
+
+        return $participants;
+    }
+
+    private function buildPlayerNames(Battle $battle): array
+    {
+        $battle->loadMissing(['player1', 'player2']);
+
+        return array_filter([
+            $battle->player1_id => $battle->player1?->name ?? 'Player '.$battle->player1_id,
+            $battle->player2_id => $battle->player2?->name ?? 'Player '.$battle->player2_id,
+        ], fn ($_, $id) => $id !== null, ARRAY_FILTER_USE_BOTH);
+    }
+
+    private function broadcastBattleUpdate(Battle $battle, array $state, string $status, ?int $nextActorId, ?int $winnerUserId): void
+    {
+        $battle->setAttribute('meta_json', $state);
+
+        broadcast(new BattleUpdated(
+            battleId: $battle->id,
+            state: $state,
+            status: $status,
+            nextActorId: $nextActorId,
+            winnerUserId: $winnerUserId,
+            viewerStates: $this->buildViewerStates($battle),
+            players: $this->buildPlayerNames($battle),
+        ));
     }
 }

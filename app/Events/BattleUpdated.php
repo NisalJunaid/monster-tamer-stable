@@ -19,6 +19,8 @@ class BattleUpdated implements ShouldBroadcastNow
         public readonly string $status,
         public readonly ?int $nextActorId,
         public readonly ?int $winnerUserId,
+        public readonly array $viewerStates = [],
+        public readonly array $players = [],
     ) {
     }
 
@@ -41,6 +43,8 @@ class BattleUpdated implements ShouldBroadcastNow
             'next_actor_id' => $this->nextActorId,
             'winner_user_id' => $this->winnerUserId,
             'state' => $this->state,
+            'viewer_states' => $this->viewerStates,
+            'players' => $this->players,
         ];
     }
 }

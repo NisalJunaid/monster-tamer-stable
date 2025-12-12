@@ -497,7 +497,25 @@ export function initBattleLive(root = document) {
             players = payload.players;
         }
 
-        battleState = payload.state || battleState;
+        const viewerSpecificState = payload.viewer_state || payload.viewer_states?.[viewerId];
+        const incomingState = viewerSpecificState || payload.state;
+
+        if (incomingState) {
+            const merged = {
+                ...battleState,
+                ...incomingState,
+                battle: {
+                    ...(battleState?.battle || {}),
+                    ...(incomingState?.battle || {}),
+                },
+            };
+
+            if (!incomingState?.battle?.player_monsters && battleState?.battle?.player_monsters) {
+                merged.battle.player_monsters = battleState.battle.player_monsters;
+            }
+
+            battleState = merged;
+        }
         battleStatus = payload.status || payload.battle?.status || battleStatus;
         winnerId = payload.winner_user_id ?? payload.battle?.winner_user_id ?? winnerId;
         render();
@@ -625,6 +643,12 @@ export function initBattleLive(root = document) {
 
         // Subscribed for both wild and PvP battles; BattleUpdated on "battles.{id}" refreshes each viewer's UI state
         channel.listen('.BattleUpdated', (payload) => {
+            console.log('BattleUpdated payload keys', Object.keys(payload || {}));
+            console.log(
+                'BattleUpdated player_monsters?',
+                payload?.battle?.player_monsters,
+                payload?.player_monsters,
+            );
             applyUpdate(payload, { fromEvent: true });
         });
     }
