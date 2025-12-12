@@ -251,6 +251,125 @@ class BattleEngine
         ];
     }
 
+    private function mergeMonsterState(array $monster, ?array $base): array
+    {
+        if ($base === null) {
+            $monster['moves'] = $this->normalizeMoves($monster['moves'] ?? []);
+
+            return $monster;
+        }
+
+        $merged = [
+            ...$base,
+            ...$monster,
+        ];
+
+        $merged['name'] = $monster['name'] ?? $base['name'] ?? 'Unknown';
+        $merged['level'] = $monster['level'] ?? $base['level'] ?? null;
+        $merged['types'] = $monster['types'] ?? $base['types'] ?? [];
+        $merged['type_names'] = $monster['type_names'] ?? $base['type_names'] ?? [];
+        $merged['stats'] = $monster['stats'] ?? $base['stats'] ?? [];
+        $merged['max_hp'] = $monster['max_hp'] ?? $base['max_hp'] ?? null;
+
+        $merged['moves'] = $this->mergeMoves(
+            $monster['moves'] ?? [],
+            $base['moves'] ?? [],
+        );
+
+        return $merged;
+    }
+
+    private function mergeMoves(array $existingMoves, array $baseMoves): array
+    {
+        $baseBySlot = collect($baseMoves)->keyBy(fn (array $move) => $move['slot'] ?? null);
+        $merged = [];
+
+        foreach ($existingMoves as $index => $move) {
+            $slot = $move['slot'] ?? ($move['id'] ?? ($index + 1));
+            $base = $slot !== null ? $baseBySlot->get($slot) : null;
+            $merged[] = $base ? array_merge($base, $move) : $this->normalizeMove($move, (int) $slot);
+        }
+
+        $mergedSlots = collect($merged)->pluck('slot')->filter()->all();
+
+        foreach ($baseBySlot as $slot => $move) {
+            if (! in_array($slot, $mergedSlots, true)) {
+                $merged[] = $move;
+            }
+        }
+
+        return $this->normalizeMoves($merged);
+    }
+
+    private function normalizeMoves(array $moves): array
+    {
+        return collect($moves)
+            ->values()
+            ->map(function (array $move, int $index) {
+                $slot = $move['slot'] ?? ($move['id'] ?? ($index + 1));
+
+                return $this->normalizeMove($move, (int) $slot);
+            })
+            ->all();
+    }
+
+    private function normalizeMove(array $move, int $slot): array
+    {
+        return [
+            'id' => $move['id'] ?? $slot,
+            'slot' => $slot,
+            'name' => $move['name'] ?? 'Move',
+            'type_id' => $move['type_id'] ?? $move['typeId'] ?? ($move['type']['id'] ?? null) ?? null,
+            'type' => $move['type'] ?? ($move['type_name'] ?? $move['typeName'] ?? 'Neutral'),
+            'category' => $move['category'] ?? 'physical',
+            'power' => $move['power'] ?? null,
+            'effect' => $move['effect'] ?? $move['effect_json'] ?? [],
+            ...Arr::except($move, ['slot', 'name', 'type', 'category', 'power', 'effect']),
+        ];
+    }
+
+    public function hydrateUiState(array $state): array
+    {
+        $participants = $state['participants'] ?? [];
+
+        if ($participants === []) {
+            return $state;
+        }
+
+        $monsterIds = collect($participants)
+            ->flatMap(fn (array $participant) => collect($participant['monsters'] ?? [])->pluck('id'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $instances = MonsterInstance::query()
+            ->with(['currentStage', 'species.primaryType', 'species.secondaryType', 'moves.move.type'])
+            ->whereIn('id', $monsterIds)
+            ->get()
+            ->keyBy('id');
+
+        $state['participants'] = collect($participants)
+            ->map(function (array $participant) use ($instances) {
+                $monsters = collect($participant['monsters'] ?? [])
+                    ->map(function (array $monster) use ($instances) {
+                        $monsterId = $monster['id'] ?? null;
+                        $base = $monsterId !== null ? $instances->get($monsterId) : null;
+                        $baseState = $base ? $this->monsterState($base) : null;
+
+                        return $this->mergeMonsterState($monster, $baseState);
+                    })
+                    ->values()
+                    ->all();
+
+                $participant['monsters'] = $monsters;
+
+                return $participant;
+            })
+            ->all();
+
+        return $state;
+    }
+
     private function isAsleep(array &$monster, array &$result): bool
     {
         if (($monster['status']['name'] ?? null) !== 'sleep') {

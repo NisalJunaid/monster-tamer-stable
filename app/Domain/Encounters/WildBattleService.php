@@ -7,6 +7,7 @@ use App\Events\WildBattleUpdated;
 use App\Models\EncounterTicket;
 use App\Models\MonsterSpeciesStage;
 use App\Models\PlayerMonster;
+use App\Models\SpeciesLearnset;
 use App\Models\TypeEffectiveness;
 use App\Models\User;
 use Illuminate\Support\Arr;
@@ -43,7 +44,10 @@ class WildBattleService
             $ticket->save();
         }
 
-        return $ticket->fresh(['species']);
+        $fresh = $ticket->fresh(['species']);
+        $fresh->battle_state = $this->decorateBattleStateForUi($user, $fresh->battle_state ?? []);
+
+        return $fresh;
     }
 
     public function actMove(User $user, EncounterTicket $ticket, string $style = 'monster'): EncounterTicket
@@ -450,9 +454,11 @@ class WildBattleService
 
     private function broadcast(User $user, EncounterTicket $ticket, array $log): void
     {
+        $battle = $this->decorateBattleStateForUi($user, $ticket->battle_state ?? []);
+
         broadcast(new WildBattleUpdated($user->id, [
             'ticket_id' => $ticket->id,
-            'battle' => $ticket->battle_state,
+            'battle' => $battle,
             'wild' => [
                 'hp' => $ticket->current_hp,
                 'max_hp' => $ticket->max_hp,
@@ -462,6 +468,84 @@ class WildBattleService
             'next_turn' => $ticket->battle_state['turn'] ?? null,
             'resolved' => ! ($ticket->battle_state['active'] ?? true),
         ]));
+    }
+
+    public function presentBattleState(User $user, EncounterTicket $ticket): array
+    {
+        return $this->decorateBattleStateForUi($user, $ticket->battle_state ?? []);
+    }
+
+    private function decorateBattleStateForUi(User $user, array $battleState): array
+    {
+        $monsters = collect($battleState['player_monsters'] ?? []);
+
+        if ($monsters->isEmpty()) {
+            return $battleState;
+        }
+
+        $ids = $monsters
+            ->map(fn (array $monster) => $monster['player_monster_id'] ?? $monster['id'] ?? null)
+            ->filter()
+            ->unique();
+
+        if ($ids->isEmpty()) {
+            return $battleState;
+        }
+
+        $party = PlayerMonster::query()
+            ->with(['species.primaryType', 'species.secondaryType', 'species.learnset.move.type', 'species.stages'])
+            ->where('user_id', $user->id)
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
+        $battleState['player_monsters'] = $monsters
+            ->map(function (array $monster) use ($party) {
+                $playerMonsterId = $monster['player_monster_id'] ?? $monster['id'] ?? null;
+
+                /** @var PlayerMonster|null $base */
+                $base = $playerMonsterId !== null ? $party->get($playerMonsterId) : null;
+
+                if (! $base) {
+                    return $monster;
+                }
+
+                $monster['player_monster_id'] = $playerMonsterId;
+                $monster['moves'] = $this->buildMonsterMoves($base);
+
+                return $monster;
+            })
+            ->values()
+            ->all();
+
+        return $battleState;
+    }
+
+    private function buildMonsterMoves(PlayerMonster $monster): array
+    {
+        $eligibleMoves = $monster->species?->learnset
+            ->filter(fn (SpeciesLearnset $entry) => $entry->learn_level <= $monster->level)
+            ->sortByDesc('learn_level')
+            ->take(4);
+
+        if ($eligibleMoves === null || $eligibleMoves->isEmpty()) {
+            $eligibleMoves = $monster->species?->learnset->sortBy('learn_level')->take(4) ?? collect();
+        }
+
+        return $eligibleMoves->values()->map(function (SpeciesLearnset $entry, int $index) {
+            $move = $entry->move;
+
+            return [
+                'id' => $move->id,
+                'slot' => $index + 1,
+                'name' => $move->name,
+                'type_id' => $move->type_id,
+                'type' => optional($move->type)->name,
+                'category' => $move->category,
+                'power' => $move->power ?? 0,
+                'effect' => $move->effect_json ?? [],
+            ];
+        })->all();
     }
 }
 
