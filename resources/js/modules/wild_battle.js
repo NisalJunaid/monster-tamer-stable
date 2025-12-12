@@ -97,7 +97,7 @@ const renderSwitchList = (monsters = [], activeId = null) => {
         .map((monster) => {
             const playerMonsterId = monster._resolvedId;
 
-            return `<button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left" data-player-monster-id="${playerMonsterId}">
+            return `<button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left js-battle-move" data-player-monster-id="${playerMonsterId}">
                     <div class="font-semibold">${monster.name}</div>
                     <p class="text-sm text-gray-600">Lv ${monster.level} • HP ${monster.current_hp} / ${monster.max_hp}</p>
                 </button>`;

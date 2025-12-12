@@ -35,8 +35,6 @@ export function wireBattleSounds(root) {
         if (!target) return;
 
         const moveBtn = target.closest('.js-battle-move');
-        const mainAction = target.closest('.js-battle-main-action');
-
         if (moveBtn) {
             playSound(moveClickSound);
 
@@ -44,9 +42,11 @@ export function wireBattleSounds(root) {
             setTimeout(() => {
                 moveBtn.classList.remove('is-pressed');
             }, 120);
+            return;
         }
 
-        if (mainAction && (!moveBtn || moveClickSound !== mainClickSound)) {
+        const mainAction = target.closest('.js-battle-main-action');
+        if (mainAction) {
             playSound(mainClickSound);
         }
     });
