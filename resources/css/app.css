@@ -18,58 +18,54 @@
     position: relative;
 }
 
+/* Full-screen overlay */
 .pvp-wait-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 5000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(2px);
-    pointer-events: auto;
-    opacity: 1;
-    transition: opacity 0.25s ease;
+  position: fixed;
+  inset: 0;                 /* top:0; right:0; bottom:0; left:0 */
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.55); /* dark transparent backdrop */
 }
 
+/* Hidden state (your JS toggles .is-hidden) */
 .pvp-wait-overlay.is-hidden {
-    opacity: 0;
-    pointer-events: none;
+  display: none;
 }
 
+/* Card styling (optional, but makes it look right) */
 .pvp-wait-overlay__card {
-    background: rgba(20, 20, 20, 0.92);
-    color: #fff;
-    border-radius: 12px;
-    padding: 16px 18px;
-    min-width: 220px;
-    text-align: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  background: white;
+  border-radius: 12px;
+  padding: 20px 22px;
+  width: min(420px, 92vw);
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
 }
 
+/* Spinner (optional) */
 .pvp-wait-overlay__spinner {
-    width: 22px;
-    height: 22px;
-    margin: 0 auto 10px auto;
-    border-radius: 999px;
-    border: 3px solid rgba(255, 255, 255, 0.25);
-    border-top-color: rgba(255, 255, 255, 0.9);
-    animation: pvpSpin 0.85s linear infinite;
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  border: 3px solid rgba(0,0,0,0.15);
+  border-top-color: rgba(0,0,0,0.7);
+  margin: 0 auto 10px;
+  animation: pvpSpin 0.9s linear infinite;
 }
 
 @keyframes pvpSpin {
-    to {
-        transform: rotate(360deg);
-    }
+  to { transform: rotate(360deg); }
 }
 
 .pvp-wait-overlay__title {
-    font-size: 14px;
-    font-weight: 700;
-    margin-bottom: 4px;
+  font-weight: 700;
+  font-size: 1.1rem;
 }
 
 .pvp-wait-overlay__subtitle {
-    font-size: 12px;
-    opacity: 0.85;
+  margin-top: 4px;
+  color: #475569;
+  font-size: 0.95rem;
 }

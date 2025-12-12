@@ -41,19 +41,23 @@ function refreshPvpTimer(state = {}) {
     const offsetMs = Number.isFinite(serverNow) ? (serverNow - Date.now()) : 0;
 
     const viewerId =
-        state.viewer_user_id ??
-        state.viewer_id ??
-        state.user_id ??
-        window.__viewerUserId ??
-        window.viewerUserId ??
-        null;
+  state?.viewer_user_id ??
+  state?.viewer_id ??
+  state?.user_id ??
+  Number(document.querySelector('[data-user-id]')?.dataset?.userId) ??
+  window.__viewerUserId ??
+  window.viewerUserId ??
+  null;
+
+
 
     const nextActorId =
-        state.next_actor_id ??
-        state.battle?.next_actor_id ??
-        state.next_actor_user_id ??
-        state.battle?.next_actor_user_id ??
-        null;
+  state?.next_actor_id ??
+  state?.state?.next_actor_id ??
+  state?.battle?.next_actor_id ??
+  state?.state?.battle?.next_actor_id ??
+  null;
+
 
     function tick() {
         const now = Date.now() + offsetMs;
@@ -140,8 +144,12 @@ function setPvpInputLocked(locked) {
 const turnChangeSound = () => getAudio('pvp-turn-change-sound');
 
 function applyPvpTurnUi(state = {}) {
-    const root = document.getElementById('battle-root');
-    if (!root || !isPvpMode(root)) {
+    const root =
+        document.getElementById('battle-root') ||
+        document.getElementById('wild-battle-page') ||
+        document.querySelector('[data-mode="pvp"]');
+
+    if (!root || (root.dataset.mode || '') !== 'pvp') {
         lastNextActorUserId = null;
         return;
     }

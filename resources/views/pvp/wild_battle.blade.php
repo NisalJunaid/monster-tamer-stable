@@ -86,6 +86,8 @@
     ];
     $liveState = $battle->meta_json ?? [];
 @endphp
+
+<div id="battle-root">
 <div id="wild-battle-page"
      class="space-y-4"
      data-move-url="{{ route('pvp.battles.wild.move', $battle) }}"
@@ -270,6 +272,7 @@
         src="{{ asset('audio/ui-turn-change.mp3') }}"
         preload="auto"
     ></audio>
+</div>
 </div>
 
 <div class="hidden" data-battle-live
