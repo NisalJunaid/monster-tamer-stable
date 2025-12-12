@@ -82,6 +82,8 @@ class BattleController extends Controller
             abort(Response::HTTP_BAD_REQUEST, $exception->getMessage());
         }
 
+        $state = $this->engine->hydrateUiState($state);
+
         $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
         $this->synchronizeLoggedTurn($state, $result, $turnNumber);
 
