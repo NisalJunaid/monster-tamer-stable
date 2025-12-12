@@ -539,6 +539,7 @@ export function initBattleLive(root = document) {
 
         if (waitingOverlay) {
             waitingOverlay.classList.toggle('hidden', !waiting);
+            waitingOverlay.classList.toggle('is-hidden', !waiting);
         }
     };
 

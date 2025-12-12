@@ -78,63 +78,6 @@
         position: relative;
     }
 
-    .pvp-wait-overlay {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1.5rem;
-        background: rgba(15, 23, 42, 0.55);
-        z-index: 30;
-        transition: opacity 0.2s ease, visibility 0.2s ease;
-    }
-
-    .pvp-wait-overlay.is-hidden {
-        opacity: 0;
-        visibility: hidden;
-        pointer-events: none;
-    }
-
-    .pvp-wait-overlay__card {
-        background: white;
-        color: #0f172a;
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        min-width: 240px;
-        text-align: center;
-        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
-    }
-
-    .pvp-wait-overlay__spinner {
-        width: 48px;
-        height: 48px;
-        border-radius: 9999px;
-        border: 4px solid #e2e8f0;
-        border-top-color: #6366f1;
-        margin: 0 auto 1rem;
-        animation: pvp-wait-spin 1s linear infinite;
-    }
-
-    @keyframes pvp-wait-spin {
-        from {
-            transform: rotate(0deg);
-        }
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
-    .pvp-wait-overlay__title {
-        font-weight: 700;
-        font-size: 1.125rem;
-        margin-bottom: 0.25rem;
-    }
-
-    .pvp-wait-overlay__subtitle {
-        color: #475569;
-        font-size: 0.9375rem;
-    }
 </style>
 @php
     $livePlayers = [
@@ -159,7 +102,7 @@
         {!! json_encode(array_merge($payload, ['mode' => 'pvp'])) !!}
     </script>
 
-    <div id="pvp-wait-overlay" class="pvp-wait-overlay is-hidden" aria-live="polite">
+    <div id="pvp-wait-overlay" class="pvp-wait-overlay is-hidden" aria-live="polite" data-battle-waiting-overlay>
       <div class="pvp-wait-overlay__card">
         <div class="pvp-wait-overlay__spinner" aria-hidden="true"></div>
         <div class="pvp-wait-overlay__title">Waiting for opponent…</div>
