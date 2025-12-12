@@ -36,6 +36,43 @@
     .team-dot + .team-dot {
         margin-left: 6px;
     }
+
+    .pvp-turn-timer {
+        display: flex;
+        justify-content: center;
+    }
+
+    .pvp-turn-timer__row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        width: 100%;
+        max-width: 480px;
+    }
+
+    .pvp-turn-timer__label {
+        font-size: 0.875rem;
+        color: #0f172a;
+        font-weight: 600;
+        min-width: 120px;
+    }
+
+    .pvp-turn-timer__bar {
+        flex: 1;
+        background: #e2e8f0;
+        border-radius: 9999px;
+        height: 10px;
+        overflow: hidden;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+
+    .pvp-turn-timer__fill {
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, #22c55e, #f97316);
+        border-radius: 9999px;
+        transition: width 0.2s ease;
+    }
 </style>
 @php
     $livePlayers = [
@@ -134,6 +171,15 @@
         </div>
     </div>
 
+    <div id="pvp-turn-timer" class="pvp-turn-timer" aria-live="polite">
+      <div class="pvp-turn-timer__row">
+        <div class="pvp-turn-timer__label" id="pvp-turn-label"></div>
+        <div class="pvp-turn-timer__bar">
+          <div class="pvp-turn-timer__fill" id="pvp-turn-fill"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="bg-white shadow rounded-xl p-5 space-y-4" data-action-menu>
         <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold">Actions</h3>
@@ -164,7 +210,7 @@
                         $isHealthy = ($monster['current_hp'] ?? 0) > 0;
                     @endphp
                     @if($switchId !== null && $isHealthy && $switchId !== $activeId)
-                        <button class="js-switch-monster px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left"
+                        <button class="js-switch-monster px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left js-battle-move"
                                 data-player-monster-id="{{ $switchId }}">
                             <div class="font-semibold">{{ $monster['name'] }}</div>
                             <p class="text-sm text-gray-600">Lv {{ $monster['level'] }} • HP {{ $monster['current_hp'] }} / {{ $monster['max_hp'] }}</p>
@@ -202,31 +248,9 @@
 
     <audio
         id="battle-click-move"
-        src="{{ asset('audio/ui-move-click.mp3') }}"
+        src="{{ asset('audio/ui-selection-click.mp3') }}"
         preload="auto"
     ></audio>
-</div>
-
-<div class="hidden" data-battle-live
-     data-battle-id="{{ $battle->id }}"
-     data-user-id="{{ $viewer->id }}">
-    {{-- Hidden listener container: reuse battle.js socket setup so both PvP opponents subscribe to BattleUpdated for this battle. --}}
-    <script type="application/json" data-battle-initial-state>
-        {!! json_encode([
-            'battle' => [
-                'id' => $battle->id,
-                'status' => $battle->status,
-                'seed' => $battle->seed,
-                'mode' => $liveState['mode'] ?? 'pvp',
-                'player1_id' => $battle->player1_id,
-                'player2_id' => $battle->player2_id,
-                'winner_user_id' => $battle->winner_user_id,
-            ],
-            'players' => $livePlayers,
-            'state' => $liveState,
-            'viewer_id' => $viewer->id,
-        ]) !!}
-    </script>
 </div>
 
 <div class="hidden" data-battle-live

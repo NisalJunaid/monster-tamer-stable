@@ -35,8 +35,6 @@ export function wireBattleSounds(root) {
         if (!target) return;
 
         const moveBtn = target.closest('.js-battle-move');
-        const mainAction = target.closest('.js-battle-main-action');
-
         if (moveBtn) {
             playSound(moveClickSound);
 
@@ -44,9 +42,11 @@ export function wireBattleSounds(root) {
             setTimeout(() => {
                 moveBtn.classList.remove('is-pressed');
             }, 120);
+            return;
         }
 
-        if (mainAction && (!moveBtn || moveClickSound !== mainClickSound)) {
+        const mainAction = target.closest('.js-battle-main-action');
+        if (mainAction) {
             playSound(mainClickSound);
         }
     });
@@ -347,6 +347,113 @@ export function initBattleLive(root = document) {
     let initialEventTimeout = null;
     let waitingForResolution = false;
 
+    const refreshPvpTimer = (stateOverride = null) => {
+        const state = stateOverride || battleState || {};
+        const timerStatus = state.status || battleStatus;
+        const timerMode = state.mode || battleState.mode || initial.battle?.mode;
+        const viewer = state.viewer_user_id ?? initial.viewer_id ?? viewerId;
+        const serverNow = state.server_now || battleState.server_now;
+
+        pvpTimer.update({
+            ...state,
+            status: timerStatus,
+            mode: timerMode,
+            viewer_user_id: viewer,
+            server_now: serverNow,
+        });
+    };
+
+    const pvpTimer = (() => {
+        const battleRoot =
+            document.querySelector('#battle-root[data-mode="pvp"]') ||
+            document.querySelector('#wild-battle-page[data-mode="pvp"]');
+        const labelEl = document.getElementById('pvp-turn-label');
+        const fillEl = document.getElementById('pvp-turn-fill');
+        const isPvpMode = (battleRoot?.dataset.mode || initial.battle?.mode || '').toLowerCase() === 'pvp';
+        const hasElements = Boolean(labelEl && fillEl);
+        const durationMs = 60000;
+
+        let intervalHandle = null;
+        let skewMs = 0;
+        let lastState = null;
+
+        const clear = () => {
+            if (intervalHandle) {
+                clearInterval(intervalHandle);
+                intervalHandle = null;
+            }
+        };
+
+        const setBar = (pct, labelText = '') => {
+            if (labelEl) {
+                labelEl.textContent = labelText;
+            }
+
+            if (fillEl) {
+                const clamped = Math.max(0, Math.min(1, pct));
+                fillEl.style.width = `${clamped * 100}%`;
+            }
+        };
+
+        const resolveViewerId = (state = {}) =>
+            Number(
+                state.viewer_user_id ??
+                    state.viewer_id ??
+                    container.dataset.userId ??
+                    initial.viewer_id ??
+                    0,
+            );
+
+        const resolveNextActorId = (state = {}) =>
+            Number(state.next_actor_user_id ?? state.next_actor_id ?? state.next_actor ?? state.next_actor_user ?? 0);
+
+        const tick = () => {
+            if (!hasElements || !isPvpMode || !lastState) {
+                return;
+            }
+
+            const endsAt = lastState.turn_ends_at;
+            if (!endsAt || (lastState.status && lastState.status !== 'active')) {
+                setBar(0, lastState.status && lastState.status !== 'active' ? 'Battle complete' : '');
+                return;
+            }
+
+            const viewerId = resolveViewerId(lastState);
+            const nextActorId = resolveNextActorId(lastState);
+            const endsMs = Date.parse(endsAt);
+
+            if (Number.isNaN(endsMs)) {
+                setBar(0, '');
+                return;
+            }
+
+            const nowMs = Date.now() + skewMs;
+            const remainingMs = Math.max(0, endsMs - nowMs);
+            const pct = remainingMs / durationMs;
+            const labelText = viewerId === nextActorId ? 'Your turn' : "Opponent's turn";
+
+            setBar(pct, labelText);
+        };
+
+        return {
+            update(state = {}) {
+                if (!hasElements || !isPvpMode) {
+                    return;
+                }
+
+                lastState = state;
+                const parsedServerNow = state.server_now ? Date.parse(state.server_now) : Number.NaN;
+                skewMs = Number.isNaN(parsedServerNow) ? 0 : parsedServerNow - Date.now();
+
+                clear();
+                tick();
+
+                intervalHandle = window.setInterval(tick, 150);
+            },
+            destroy: clear,
+        };
+    })();
+
     const updateHeader = () => {
         if (statusTextEl) {
             statusTextEl.textContent = battleStatus.charAt(0).toUpperCase() + battleStatus.slice(1);
@@ -519,6 +626,7 @@ export function initBattleLive(root = document) {
         battleStatus = payload.status || payload.battle?.status || battleStatus;
         winnerId = payload.winner_user_id ?? payload.battle?.winner_user_id ?? winnerId;
         render();
+        refreshPvpTimer(payload.state || battleState);
 
         const isActive = battleStatus === 'active';
         const isYourTurn = isActive && (battleState.next_actor_id ?? null) === viewerId;
@@ -612,6 +720,7 @@ export function initBattleLive(root = document) {
     });
 
     render();
+    refreshPvpTimer(battleState);
 
     if (battleStatus !== 'active') {
         scheduleCompletion();

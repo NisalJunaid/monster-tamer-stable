@@ -221,7 +221,7 @@
                                 <option value="{{ $monster['id'] }}">Swap to {{ $monster['name'] }} (HP {{ $monster['current_hp'] }})</option>
                             @endforeach
                         </select>
-                        <button class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-500">Swap</button>
+                        <button class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 js-battle-move">Swap</button>
                     </form>
                 @else
                     <p class="text-xs text-gray-500">No reserve monsters available{{ ($yourActive['id'] ?? null) === 0 ? '—using martial arts move set.' : '.' }}</p>
@@ -265,7 +265,7 @@
 
     <audio
         id="battle-click-move"
-        src="{{ asset('audio/ui-move-click.mp3') }}"
+        src="{{ asset('audio/ui-selection-click.mp3') }}"
         preload="auto"
     ></audio>
 </div>
