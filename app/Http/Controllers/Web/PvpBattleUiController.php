@@ -7,6 +7,7 @@ use App\Domain\Battle\BattleEngine;
 use App\Domain\Battle\TurnNumberService;
 use App\Domain\Pvp\BattleUiAdapter;
 use App\Domain\Pvp\PvpRankingService;
+use App\Domain\Pvp\TurnTimerService;
 use App\Events\BattleUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Battle;
@@ -26,6 +27,7 @@ class PvpBattleUiController extends Controller
         private readonly BattleUiAdapter $adapter,
         private readonly MonsterSwitchService $monsterSwitchService,
         private readonly TurnNumberService $turnNumberService,
+        private readonly TurnTimerService $turnTimerService,
     ) {
     }
 
@@ -121,9 +123,10 @@ class PvpBattleUiController extends Controller
         }
 
         $meta = $battle->meta_json ?? [];
+        $nextActorId = $meta['next_actor_user_id'] ?? $meta['next_actor_id'] ?? null;
 
-        if (($meta['next_actor_id'] ?? null) !== $actor->id) {
-            return response()->json(['message' => 'It is not your turn yet.'], Response::HTTP_CONFLICT);
+        if ((int) $nextActorId !== $actor->id) {
+            return response()->json(['message' => 'Not your turn'], Response::HTTP_CONFLICT);
         }
 
         try {
@@ -138,6 +141,8 @@ class PvpBattleUiController extends Controller
 
         $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
         $this->synchronizeLoggedTurn($state, $result, $turnNumber);
+        $this->turnTimerService->refresh($state);
+        $state['next_actor_user_id'] = $this->resolveNextActorUserId($state, $battle);
 
         $battle->update([
             'meta_json' => $state,
@@ -145,6 +150,12 @@ class PvpBattleUiController extends Controller
             'winner_user_id' => $winnerId,
             'ended_at' => $hasEnded ? now() : null,
         ]);
+
+        $battle->setAttribute('meta_json', $state);
+
+        if (! $hasEnded) {
+            $this->turnTimerService->scheduleTimeoutJob($battle, $state);
+        }
 
         // turn_number is pulled from the in-memory result payload (engine move
         // output or swap state) rather than recomputing the next turn in SQL.
@@ -311,6 +322,8 @@ class PvpBattleUiController extends Controller
             ],
             'battle' => $wildState,
             'user_id' => $viewer->id,
+            'viewer_user_id' => $viewer->id,
+            'server_now' => now()->utc()->toIso8601String(),
         ];
     }
 
