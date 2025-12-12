@@ -7,6 +7,7 @@ use App\Domain\Battle\BattleEngine;
 use App\Domain\Battle\TurnNumberService;
 use App\Domain\Pvp\BattleUiAdapter;
 use App\Domain\Pvp\PvpRankingService;
+use App\Domain\Pvp\TurnTimerService;
 use App\Events\BattleUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Battle;
@@ -26,6 +27,7 @@ class PvpBattleUiController extends Controller
         private readonly BattleUiAdapter $adapter,
         private readonly MonsterSwitchService $monsterSwitchService,
         private readonly TurnNumberService $turnNumberService,
+        private readonly TurnTimerService $turnTimerService,
     ) {
     }
 
@@ -138,6 +140,11 @@ class PvpBattleUiController extends Controller
 
         $turnNumber = $this->turnNumberService->nextTurnNumber($battle);
         $this->synchronizeLoggedTurn($state, $result, $turnNumber);
+        if ($hasEnded) {
+            $this->turnTimerService->refresh($state);
+        } else {
+            $this->turnTimerService->startTurn($battle, $state);
+        }
 
         $battle->update([
             'meta_json' => $state,
@@ -145,6 +152,8 @@ class PvpBattleUiController extends Controller
             'winner_user_id' => $winnerId,
             'ended_at' => $hasEnded ? now() : null,
         ]);
+
+        $battle->setAttribute('meta_json', $state);
 
         // turn_number is pulled from the in-memory result payload (engine move
         // output or swap state) rather than recomputing the next turn in SQL.
@@ -306,6 +315,8 @@ class PvpBattleUiController extends Controller
         $battle->setAttribute('meta_json', $state);
 
         $wildState = $this->adapter->toWildUiState($battle, $viewer);
+        $wildState['turn_started_at'] = $state['turn_started_at'] ?? null;
+        $wildState['turn_ends_at'] = $state['turn_ends_at'] ?? null;
         $opponent = $wildState['wild'] ?? [];
 
         \Log::info('PVP UI state for viewer', [
@@ -325,6 +336,8 @@ class PvpBattleUiController extends Controller
             ],
             'battle' => $wildState,
             'user_id' => $viewer->id,
+            'viewer_user_id' => $viewer->id,
+            'server_now' => now()->utc()->toIso8601String(),
         ];
     }
 

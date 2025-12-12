@@ -36,6 +36,43 @@
     .team-dot + .team-dot {
         margin-left: 6px;
     }
+
+    .pvp-turn-timer {
+        display: flex;
+        justify-content: center;
+    }
+
+    .pvp-turn-timer__row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        width: 100%;
+        max-width: 480px;
+    }
+
+    .pvp-turn-timer__label {
+        font-size: 0.875rem;
+        color: #0f172a;
+        font-weight: 600;
+        min-width: 120px;
+    }
+
+    .pvp-turn-timer__bar {
+        flex: 1;
+        background: #e2e8f0;
+        border-radius: 9999px;
+        height: 10px;
+        overflow: hidden;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+
+    .pvp-turn-timer__fill {
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, #22c55e, #f97316);
+        border-radius: 9999px;
+        transition: width 0.2s ease;
+    }
 </style>
 @php
     $livePlayers = [
@@ -132,6 +169,15 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div id="pvp-turn-timer" class="pvp-turn-timer" aria-live="polite">
+      <div class="pvp-turn-timer__row">
+        <div class="pvp-turn-timer__label" id="pvp-turn-label"></div>
+        <div class="pvp-turn-timer__bar">
+          <div class="pvp-turn-timer__fill" id="pvp-turn-fill"></div>
+        </div>
+      </div>
     </div>
 
     <div class="bg-white shadow rounded-xl p-5 space-y-4" data-action-menu>
