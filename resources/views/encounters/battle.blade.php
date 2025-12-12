@@ -106,17 +106,17 @@
             <span class="text-sm text-gray-600" data-turn-indicator>{{ ($battle['active'] ?? false) ? 'Choose your move' : 'Battle resolved' }}</span>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
-            <button type="button" class="px-3 py-2 rounded bg-slate-900 text-white hover:bg-slate-800" data-action-tab="move">Move</button>
-            <button type="button" class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" data-action-tab="bag">Bag</button>
-            <button type="button" class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" data-action-tab="switch">Switch</button>
-            <button type="button" class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" data-action-tab="tame">Tame</button>
-            <button type="button" class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" data-action-tab="run">Run</button>
+            <button type="button" class="px-3 py-2 rounded bg-slate-900 text-white hover:bg-slate-800 js-battle-main-action" data-action-tab="move">Move</button>
+            <button type="button" class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 js-battle-main-action" data-action-tab="bag">Bag</button>
+            <button type="button" class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 js-battle-main-action" data-action-tab="switch">Switch</button>
+            <button type="button" class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 js-battle-main-action" data-action-tab="tame">Tame</button>
+            <button type="button" class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 js-battle-main-action" data-action-tab="run">Run</button>
         </div>
         <div class="border rounded-lg p-4 bg-gray-50" data-action-panel="move">
             <p class="text-sm text-gray-600 mb-3">Select a move:</p>
             <div class="grid md:grid-cols-2 gap-3" data-move-list>
-                <button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400" data-move-style="monster">Monster Technique</button>
-                <button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400" data-move-style="martial">Martial Arts</button>
+                <button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400 js-battle-move js-battle-main-action" data-move-style="monster">Monster Technique</button>
+                <button class="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:border-emerald-400 js-battle-move js-battle-main-action" data-move-style="martial">Martial Arts</button>
             </div>
         </div>
         <div class="border rounded-lg p-4 bg-gray-50 hidden" data-action-panel="bag">
@@ -130,7 +130,7 @@
                         $switchId = $monster['player_monster_id'] ?? $monster['id'] ?? $monster['instance_id'] ?? null;
                     @endphp
                     @if($switchId !== null && $monster['current_hp'] > 0 && ($monster['id'] ?? $switchId) !== $activeId)
-                        <button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left"
+                        <button class="px-3 py-2 rounded border border-gray-200 bg-white hover:border-indigo-400 text-left js-battle-move"
                                 data-player-monster-id="{{ $switchId }}"
                                 data-switch-id="{{ $switchId }}">
                             <div class="font-semibold">{{ $monster['name'] }}</div>
@@ -142,12 +142,12 @@
         </div>
         <div class="border rounded-lg p-4 bg-gray-50 hidden" data-action-panel="tame">
             <p class="text-sm text-gray-600 mb-3">Try to tame the wild monster.</p>
-            <button class="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-500" data-action-tame>Throw Taming Orb</button>
+            <button class="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-500 js-battle-main-action" data-action-tame>Throw Taming Orb</button>
             <p class="text-xs text-gray-500 mt-2" data-tame-result></p>
         </div>
         <div class="border rounded-lg p-4 bg-gray-50 hidden" data-action-panel="run">
             <p class="text-sm text-gray-600 mb-3">Attempt to flee the battle.</p>
-            <button class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500" data-action-run>Run Away</button>
+            <button class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500 js-battle-main-action" data-action-run>Run Away</button>
         </div>
         <p class="text-sm text-gray-500" data-action-status></p>
     </div>
@@ -165,5 +165,17 @@
             @endforelse
         </div>
     </div>
+
+    <audio
+        id="battle-click-main"
+        src="{{ asset('audio/ui-main-click.mp3') }}"
+        preload="auto"
+    ></audio>
+
+    <audio
+        id="battle-click-move"
+        src="{{ asset('audio/ui-selection-click.mp3') }}"
+        preload="auto"
+    ></audio>
 </div>
 @endsection

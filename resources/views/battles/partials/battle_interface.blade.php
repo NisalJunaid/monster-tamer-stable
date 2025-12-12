@@ -201,7 +201,7 @@
                             @csrf
                             <input type="hidden" name="type" value="move">
                             <input type="hidden" name="slot" value="{{ $move['slot'] }}">
-                            <button class="w-full px-3 py-3 rounded-lg border border-gray-200 hover:border-emerald-400 hover:shadow text-left" data-move-slot="{{ $move['slot'] }}">
+                            <button class="w-full px-3 py-3 rounded-lg border border-gray-200 hover:border-emerald-400 hover:shadow text-left js-battle-move js-battle-main-action" data-move-slot="{{ $move['slot'] }}">
                                 <div class="flex items-center justify-between">
                                     <span class="font-semibold">{{ $move['name'] }}</span>
                                     <span class="text-xs uppercase text-gray-500">Slot {{ $move['slot'] }}</span>
@@ -221,7 +221,7 @@
                                 <option value="{{ $monster['id'] }}">Swap to {{ $monster['name'] }} (HP {{ $monster['current_hp'] }})</option>
                             @endforeach
                         </select>
-                        <button class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-500">Swap</button>
+                        <button class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 js-battle-move">Swap</button>
                     </form>
                 @else
                     <p class="text-xs text-gray-500">No reserve monsters available{{ ($yourActive['id'] ?? null) === 0 ? '—using martial arts move set.' : '.' }}</p>
@@ -256,4 +256,16 @@
             </div>
         @endif
     </div>
+
+    <audio
+        id="battle-click-main"
+        src="{{ asset('audio/ui-main-click.mp3') }}"
+        preload="auto"
+    ></audio>
+
+    <audio
+        id="battle-click-move"
+        src="{{ asset('audio/ui-selection-click.mp3') }}"
+        preload="auto"
+    ></audio>
 </div>
