@@ -483,7 +483,9 @@ export function initWildBattle() {
                 }
 
                 const nextState = (() => {
-                    const participants = payload.state?.participants || {};
+                    const viewerState = payload?.viewer_state || payload?.viewer_states?.[userId];
+                    const payloadState = viewerState || payload.state;
+                    const participants = payloadState?.participants || {};
                     const participantIds = Object.keys(participants).map((id) => Number.parseInt(id, 10));
                     const opponentId = participantIds.find((id) => id !== Number(userId)) ?? null;
                     const viewerSide = participants[userId] || { monsters: [], active_index: 0 };
@@ -494,13 +496,13 @@ export function initWildBattle() {
                     return {
                         active: (payload.status ?? 'active') === 'active',
                         resolved: (payload.status ?? 'active') !== 'active',
-                        turn: payload.state?.turn ?? 1,
-                        next_actor_id: payload.state?.next_actor_id ?? null,
+                        turn: payloadState?.turn ?? 1,
+                        next_actor_id: payloadState?.next_actor_id ?? null,
                         player_active_monster_id: resolveActiveId(viewerSide, playerMonsters),
                         player_monsters: playerMonsters,
                         opponent_monsters: opponentMonsters,
                         wild: resolveActiveMonster(opponentSide, opponentMonsters),
-                        last_action_log: transformPvpLog(payload.state?.log || [], Number(userId), opponentName),
+                        last_action_log: transformPvpLog(payloadState?.log || [], Number(userId), opponentName),
                         wild_ai: false,
                     };
                 })();

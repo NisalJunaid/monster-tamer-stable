@@ -604,7 +604,9 @@ export function initBattleLive(root = document) {
             players = payload.players;
         }
 
-        battleState = payload.state || battleState;
+        const viewerSpecificState = payload.viewer_state || payload.viewer_states?.[viewerId];
+
+        battleState = viewerSpecificState || payload.state || battleState;
         battleStatus = payload.status || payload.battle?.status || battleStatus;
         winnerId = payload.winner_user_id ?? payload.battle?.winner_user_id ?? winnerId;
         render();
