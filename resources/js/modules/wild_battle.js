@@ -53,7 +53,14 @@ const moveOptions = (activeMonster = null) => {
 
 const renderSwitchList = (monsters = [], activeId = null) => {
     const normalizeMonsterId = (monster) => {
-        const candidate = Number.parseInt(monster.player_monster_id ?? '', 10);
+        const candidate = [
+            monster.player_monster_id,
+            monster.id,
+            monster.instance_id,
+            monster.monster_instance_id,
+        ]
+            .map((raw) => Number.parseInt(raw ?? '', 10))
+            .find((value) => Number.isInteger(value));
 
         return Number.isInteger(candidate) ? candidate : null;
     };
@@ -63,6 +70,11 @@ const renderSwitchList = (monsters = [], activeId = null) => {
             ? Number(activeId)
             : null;
 
+    // Healthy switch targets must: (1) have a resolvable identifier from any of the
+    // accepted id fields above, (2) not be the currently active monster, and
+    // (3) have positive HP (`current_hp > 0`). The check below mirrors the wild
+    // battle state shape, which exposes HP as `current_hp`/`max_hp` and identifies
+    // the active monster by id rather than index.
     const eligible = monsters
         .map((monster) => ({ ...monster, _resolvedId: normalizeMonsterId(monster) }))
         .filter((monster) => {
@@ -312,8 +324,11 @@ export function initWildBattle() {
             opponentName = battle.wild.name;
         }
 
-        const playerMonsters = battle.player?.monsters || battle.player_monsters || [];
-        const playerActiveId = battle.player?.active_monster_id ?? battle.player_active_monster_id;
+        const playerMonsters = normalizeMonsters(battle.player?.monsters || battle.player_monsters || []);
+        const playerActiveId =
+            battle.player?.active_monster_id ??
+            battle.player_active_monster_id ??
+            resolveActiveId(battle.player || {}, playerMonsters);
         const activeMonster = playerMonsters.find((m) => m.player_monster_id === playerActiveId)
             || playerMonsters.find((m) => m.id === playerActiveId)
             || playerMonsters[0];
@@ -353,6 +368,8 @@ export function initWildBattle() {
         if (turnIndicator) turnIndicator.textContent = (battle.active ?? true) ? 'Choose your move' : 'Battle resolved';
         if (statusLabel) statusLabel.textContent = `State: ${formatStatus(battle)}`;
         if (turnLabel) turnLabel.textContent = battle.turn ?? 1;
+
+        wireBattleSounds(container);
 
         checkResolution();
     };
