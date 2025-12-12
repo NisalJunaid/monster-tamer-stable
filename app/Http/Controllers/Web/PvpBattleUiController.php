@@ -123,9 +123,10 @@ class PvpBattleUiController extends Controller
         }
 
         $meta = $battle->meta_json ?? [];
+        $nextActorId = $meta['next_actor_user_id'] ?? $meta['next_actor_id'] ?? null;
 
-        if (($meta['next_actor_id'] ?? null) !== $actor->id) {
-            return response()->json(['message' => 'It is not your turn yet.'], Response::HTTP_CONFLICT);
+        if ((int) $nextActorId !== $actor->id) {
+            return response()->json(['message' => 'Not your turn'], Response::HTTP_CONFLICT);
         }
 
         try {
