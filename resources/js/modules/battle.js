@@ -39,36 +39,28 @@ function setPvpInputLocked(locked) {
         overlay.classList.toggle('is-hidden', !locked);
     }
 
-    const root = document.getElementById('battle-root');
+    const root = document.getElementById('battle-root') || document.getElementById('wild-battle-page');
+    if (!root) return;
 
-    document.querySelectorAll('.js-battle-main-action, .js-battle-move, .js-switch-monster, button, a').forEach((el) => {
-        if (root && !root.contains(el)) return;
-
-        if (
-            el.classList.contains('js-battle-main-action') ||
-            el.classList.contains('js-battle-move') ||
-            el.classList.contains('js-switch-monster')
-        ) {
-            el.toggleAttribute('disabled', locked);
-            el.classList.toggle('is-disabled', locked);
-            if (locked) el.setAttribute('aria-disabled', 'true');
-            else el.removeAttribute('aria-disabled');
-        }
+    root.querySelectorAll('.js-battle-main-action, .js-battle-move, .js-switch-monster').forEach((el) => {
+        el.toggleAttribute('disabled', locked);
+        el.classList.toggle('is-disabled', locked);
+        if (locked) el.setAttribute('aria-disabled', 'true');
+        else el.removeAttribute('aria-disabled');
     });
 }
 
 const turnChangeSound = () => getAudio('pvp-turn-change-sound');
 
 function applyPvpTurnUi(state = {}) {
-    const root = document.getElementById('battle-root');
+    const root = document.getElementById('battle-root') || document.getElementById('wild-battle-page');
     if (!root || !isPvpMode(root)) {
         lastNextActorUserId = null;
         return;
     }
 
-    const viewerId = state.viewer_user_id ?? state.viewer_id ?? state.user_id;
-    const nextActorId =
-        state.battle?.next_actor_user_id ?? state.next_actor_user_id ?? state.battle?.next_actor_id ?? state.next_actor_id;
+    const viewerId = state.viewer_user_id ?? state.user_id;
+    const nextActorId = state.battle?.next_actor_user_id;
 
     if (!viewerId || !nextActorId) return;
 
