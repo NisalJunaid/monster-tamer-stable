@@ -70,6 +70,11 @@ const renderSwitchList = (monsters = [], activeId = null) => {
             ? Number(activeId)
             : null;
 
+    // Healthy switch targets must: (1) have a resolvable identifier from any of the
+    // accepted id fields above, (2) not be the currently active monster, and
+    // (3) have positive HP (`current_hp > 0`). The check below mirrors the wild
+    // battle state shape, which exposes HP as `current_hp`/`max_hp` and identifies
+    // the active monster by id rather than index.
     const eligible = monsters
         .map((monster) => ({ ...monster, _resolvedId: normalizeMonsterId(monster) }))
         .filter((monster) => {
@@ -319,8 +324,11 @@ export function initWildBattle() {
             opponentName = battle.wild.name;
         }
 
-        const playerMonsters = battle.player?.monsters || battle.player_monsters || [];
-        const playerActiveId = battle.player?.active_monster_id ?? battle.player_active_monster_id;
+        const playerMonsters = normalizeMonsters(battle.player?.monsters || battle.player_monsters || []);
+        const playerActiveId =
+            battle.player?.active_monster_id ??
+            battle.player_active_monster_id ??
+            resolveActiveId(battle.player || {}, playerMonsters);
         const activeMonster = playerMonsters.find((m) => m.player_monster_id === playerActiveId)
             || playerMonsters.find((m) => m.id === playerActiveId)
             || playerMonsters[0];
