@@ -18,61 +18,96 @@
     position: relative;
 }
 
-/* Full-screen overlay */
-.pvp-wait-overlay {
-  position: fixed;
-  inset: 0;                 /* top:0; right:0; bottom:0; left:0 */
-  z-index: 99999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(15, 23, 42, 0.55); /* dark transparent backdrop */
+/* =========================================================
+   REQUIRED CHANGE:
+   Make PvP overlay cover ONLY the actions panel (not fullscreen)
+   ========================================================= */
+
+/* Ensure the actions panel is the positioning context */
+#pvp-actions-root,
+[data-action-menu] {
+    position: relative; /* safe even if Tailwind already adds relative */
+}
+
+/* Panel-scoped overlay */
+#pvp-actions-root .pvp-wait-overlay,
+[data-action-menu] .pvp-wait-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* dim ONLY the panel */
+    background: rgba(15, 23, 42, 0.55);
+
+    /* match Tailwind rounded-xl (12px) */
+    border-radius: 12px;
+
+    /* block clicks inside the actions panel */
+    pointer-events: auto;
 }
 
 /* Hidden state (your JS toggles .is-hidden) */
-.pvp-wait-overlay.is-hidden {
+#pvp-actions-root .pvp-wait-overlay.is-hidden,
+[data-action-menu] .pvp-wait-overlay.is-hidden {
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
 }
 
-.pvp-wait-overlay {
+/* Visible state */
+#pvp-actions-root .pvp-wait-overlay,
+[data-action-menu] .pvp-wait-overlay {
     visibility: visible;
 }
 
-
-/* Card styling (optional, but makes it look right) */
-.pvp-wait-overlay__card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px 22px;
-  width: min(420px, 92vw);
-  text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+/* Card styling */
+#pvp-actions-root .pvp-wait-overlay__card,
+[data-action-menu] .pvp-wait-overlay__card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px 22px;
+    width: min(420px, 92%);
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 }
 
-/* Spinner (optional) */
-.pvp-wait-overlay__spinner {
-  width: 34px;
-  height: 34px;
-  border-radius: 9999px;
-  border: 3px solid rgba(0,0,0,0.15);
-  border-top-color: rgba(0,0,0,0.7);
-  margin: 0 auto 10px;
-  animation: pvpSpin 0.9s linear infinite;
+/* Spinner */
+#pvp-actions-root .pvp-wait-overlay__spinner,
+[data-action-menu] .pvp-wait-overlay__spinner {
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    border: 3px solid rgba(0, 0, 0, 0.15);
+    border-top-color: rgba(0, 0, 0, 0.7);
+    margin: 0 auto 10px;
+    animation: pvpSpin 0.9s linear infinite;
 }
 
 @keyframes pvpSpin {
-  to { transform: rotate(360deg); }
+    to { transform: rotate(360deg); }
 }
 
-.pvp-wait-overlay__title {
-  font-weight: 700;
-  font-size: 1.1rem;
+#pvp-actions-root .pvp-wait-overlay__title,
+[data-action-menu] .pvp-wait-overlay__title {
+    font-weight: 700;
+    font-size: 1.1rem;
 }
 
-.pvp-wait-overlay__subtitle {
-  margin-top: 4px;
-  color: #475569;
-  font-size: 0.95rem;
+#pvp-actions-root .pvp-wait-overlay__subtitle,
+[data-action-menu] .pvp-wait-overlay__subtitle {
+    margin-top: 4px;
+    color: #475569;
+    font-size: 0.95rem;
+}
+
+/* =========================================================
+   Optional safety: if any old fullscreen rule exists elsewhere,
+   this neutralizes it for the panel overlay usage.
+   ========================================================= */
+.pvp-wait-overlay {
+    /* leave generic rules minimal so the scoped selectors above control PvP */
 }

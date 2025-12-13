@@ -65,4 +65,11 @@ class User extends Authenticatable
     {
         return $this->hasMany(PlayerMonster::class);
     }
+
+    public function bag()
+{
+    return $this->hasOne(\App\Models\Bag::class);
+}
+
+
 }

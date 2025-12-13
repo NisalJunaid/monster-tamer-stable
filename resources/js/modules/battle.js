@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 
@@ -41,22 +42,22 @@ function refreshPvpTimer(state = {}) {
     const offsetMs = Number.isFinite(serverNow) ? (serverNow - Date.now()) : 0;
 
     const viewerId =
-  state?.viewer_user_id ??
-  state?.viewer_id ??
-  state?.user_id ??
-  Number(document.querySelector('[data-user-id]')?.dataset?.userId) ??
-  window.__viewerUserId ??
-  window.viewerUserId ??
-  null;
+        state?.viewer_user_id ??
+        state?.viewer_id ??
+        state?.user_id ??
+        Number(document.querySelector('[data-user-id]')?.dataset?.userId) ??
+        window.__viewerUserId ??
+        window.viewerUserId ??
+        null;
 
 
 
     const nextActorId =
-  state?.next_actor_id ??
-  state?.state?.next_actor_id ??
-  state?.battle?.next_actor_id ??
-  state?.state?.battle?.next_actor_id ??
-  null;
+        state?.next_actor_id ??
+        state?.state?.next_actor_id ??
+        state?.battle?.next_actor_id ??
+        state?.state?.battle?.next_actor_id ??
+        null;
 
 
     function tick() {
@@ -87,8 +88,13 @@ function refreshPvpTimer(state = {}) {
 
 
 
-
-const escapeHtml = (value = '') => `${value}`.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+const escapeHtml = (value = '') =>
+    `${value}`
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 
 function getAudio(id) {
     const el = document.getElementById(id);
@@ -116,71 +122,82 @@ function playSound(audioEl) {
 }
 
 function isPvpMode() {
-  const root =
-    document.getElementById('wild-battle-page') ||
-    document.querySelector('[data-mode="pvp"]');
+    const root =
+        document.getElementById('wild-battle-page') ||
+        document.querySelector('[data-mode="pvp"]');
 
-  return root?.dataset?.mode === 'pvp';
+    return root?.dataset?.mode === 'pvp';
 }
 
 
 function setPvpInputLocked(locked) {
-  pvpInputLocked = Boolean(locked);
+    pvpInputLocked = Boolean(locked);
 
-  const overlay = document.getElementById('pvp-wait-overlay');
-  if (overlay) {
-    overlay.classList.toggle('is-hidden', !locked);
-  }
+    const overlay = document.getElementById('pvp-wait-overlay');
+    if (overlay) {
+        overlay.classList.toggle('is-hidden', !locked);
+    }
 
-  document
-    .querySelectorAll('.js-battle-main-action, .js-battle-move, .js-switch-monster')
-    .forEach((el) => {
-      el.disabled = locked;
-      el.classList.toggle('is-disabled', locked);
-    });
+    document
+        .querySelectorAll('.js-battle-main-action, .js-battle-move, .js-switch-monster')
+        .forEach((el) => {
+            el.disabled = locked;
+            el.classList.toggle('is-disabled', locked);
+        });
 }
 
 
 const turnChangeSound = () => getAudio('pvp-turn-change-sound');
 
-function applyPvpTurnUi(state = {}) {
-  // PvP page root (your blade uses #wild-battle-page)
-const root =
-  document.getElementById('wild-battle-page') ||
-  document.querySelector('[data-mode="pvp"]') ||
-  document.getElementById('battle-root');
-  
-  if (!root || root.dataset.mode !== 'pvp') {
-    lastNextActorUserId = null;
-    return;
-  }
+/**
+ * MINIMAL CHANGE:
+ * - Accept an optional explicitViewerId (we pass viewerId from initBattleLive/applyUpdate)
+ * - Add stronger viewerId fallback via DOM dataset
+ * - Add broader nextActorId fallbacks (covers merged timerState shapes)
+ */
+function applyPvpTurnUi(state = {}, explicitViewerId = null) {
+    const root =
+        document.getElementById('wild-battle-page') ||
+        document.querySelector('[data-mode="pvp"]') ||
+        document.getElementById('battle-root');
 
-  const viewerId =
-    state.viewer_user_id ??
-    state.viewer_id ??
-    state.user_id ??
-    window.__viewerUserId ??
-    null;
+    if (!root || root.dataset.mode !== 'pvp') {
+        lastNextActorUserId = null;
+        return;
+    }
 
-  const nextActorId =
-    state.next_actor_id ??
-    state.battle?.next_actor_id ??
-    state.next_actor_user_id ??
-    state.battle?.next_actor_user_id ??
-    null;
+    const viewerId =
+        explicitViewerId ??
+        state?.viewer_user_id ??
+        state?.viewer_id ??
+        state?.user_id ??
+        Number(root?.dataset?.userId) ??
+        Number(document.querySelector('[data-user-id]')?.dataset?.userId) ??
+        window.__viewerUserId ??
+        window.viewerUserId ??
+        null;
 
-  if (!viewerId || !nextActorId) return;
+    const nextActorId =
+        state?.next_actor_id ??
+        state?.state?.next_actor_id ??
+        state?.battle?.next_actor_id ??
+        state?.state?.battle?.next_actor_id ??
+        state?.next_actor_user_id ??
+        state?.battle?.next_actor_user_id ??
+        null;
 
-  if (lastNextActorUserId !== null && String(lastNextActorUserId) !== String(nextActorId)) {
-    playSound(turnChangeSound());
-  }
-  lastNextActorUserId = nextActorId;
+    if (!viewerId || !nextActorId) return;
 
-  const isYourTurn = String(nextActorId) === String(viewerId);
-  setPvpInputLocked(!isYourTurn);
+    if (lastNextActorUserId !== null && String(lastNextActorUserId) !== String(nextActorId)) {
+        playSound(turnChangeSound());
+    }
+    lastNextActorUserId = nextActorId;
 
-  const subtitle = document.querySelector('#pvp-wait-overlay .pvp-wait-overlay__subtitle');
-  if (subtitle) subtitle.textContent = isYourTurn ? 'Your turn' : 'Their turn';
+    const isYourTurn = String(nextActorId) === String(viewerId);
+    setPvpInputLocked(!isYourTurn);
+
+    const subtitle = document.querySelector('#pvp-wait-overlay .pvp-wait-overlay__subtitle');
+    if (subtitle) subtitle.textContent = isYourTurn ? 'Your turn' : 'Their turn';
 }
 
 
@@ -450,7 +467,7 @@ const renderLog = (log = [], players = {}) => {
                     </div>
                     <ul class="list-disc list-inside text-gray-600">
                         ${(entry.events || [])
-                            .map((event) => `<li>${escapeHtml(event.type ? event.type.charAt(0).toUpperCase() + event.type.slice(1) : 'Event')} - ${escapeHtml(JSON.stringify(event))}</li>`) 
+                            .map((event) => `<li>${escapeHtml(event.type ? event.type.charAt(0).toUpperCase() + event.type.slice(1) : 'Event')} - ${escapeHtml(JSON.stringify(event))}</li>`)
                             .join('')}
                     </ul>
                 </div>
@@ -473,6 +490,175 @@ const parseInitialState = (container) => {
         return null;
     }
 };
+
+/* =========================================================
+   BAG UI + ITEM USE (no equipped-moves system yet)
+   - loads /bag
+   - POST /bag/use { item_id, monster_id }
+   - updates HP bar/text on success when heal_hp
+   - shows server message for teach_move (learned stored server-side)
+   ========================================================= */
+
+function getBattleRootEl() {
+    return (
+        document.getElementById('wild-battle-page') ||
+        document.getElementById('battle-root') ||
+        document.body
+    );
+}
+
+function getActiveMonsterIdFromDom() {
+    const root = getBattleRootEl();
+    const raw = root?.dataset?.activeMonsterId || root?.dataset?.activeId || null;
+    const parsed = raw != null ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+// If DOM doesn’t provide it, try derive from live state
+function getActiveMonsterIdFromState(battleState, viewerId) {
+    try {
+        const p = battleState?.participants?.[viewerId];
+        const idx = p?.active_index ?? 0;
+        const m = p?.monsters?.[idx];
+        const id = m?.id;
+        const parsed = id != null ? Number(id) : NaN;
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function updatePlayerHpUi(currentHp, maxHp) {
+    const hpTextEl = document.querySelector('[data-player-hp-text]');
+    const hpBarEl = document.querySelector('[data-player-hp-bar]');
+    if (hpTextEl) hpTextEl.textContent = `HP ${currentHp} / ${maxHp}`;
+    if (hpBarEl) {
+        const pct = Math.max(
+            0,
+            Math.min(100, Math.floor((Number(currentHp) / Math.max(1, Number(maxHp))) * 100)),
+        );
+        hpBarEl.style.width = `${pct}%`;
+    }
+}
+
+function ensureBagPlaceholders() {
+    const listEl = document.querySelector('[data-bag-items]');
+    const statusEl = document.querySelector('[data-bag-status]');
+    return { listEl, statusEl };
+}
+
+function renderBagItems(items = []) {
+    const { listEl } = ensureBagPlaceholders();
+    if (!listEl) return;
+
+    if (!items.length) {
+        listEl.innerHTML = `<p class="text-sm text-gray-500">Your bag is empty.</p>`;
+        return;
+    }
+
+    listEl.innerHTML = items
+        .map(
+            (i) => `
+        <div class="flex items-center justify-between border rounded bg-white px-3 py-2">
+          <div class="min-w-0">
+            <div class="font-semibold text-sm truncate">${escapeHtml(i.name)}</div>
+            <div class="text-xs text-gray-500 truncate">${escapeHtml(i.description ?? '')}</div>
+            <div class="text-xs text-gray-500">Qty: <span data-bag-qty="${i.item_id}">${Number(i.quantity) || 0}</span></div>
+          </div>
+          <button
+            type="button"
+            class="px-3 py-2 rounded bg-slate-900 text-white text-sm hover:bg-slate-800"
+            data-use-item="${i.item_id}"
+            ${Number(i.quantity) > 0 ? '' : 'disabled'}
+          >
+            Use
+          </button>
+        </div>
+      `,
+        )
+        .join('');
+}
+
+async function loadBagIntoUi() {
+    const { listEl, statusEl } = ensureBagPlaceholders();
+    if (!listEl) return;
+
+    try {
+        if (statusEl) statusEl.textContent = 'Loading bag...';
+        const res = await axios.get('/bag', { headers: { Accept: 'application/json' } });
+        const items = res.data?.items || [];
+        renderBagItems(items);
+        if (statusEl) statusEl.textContent = '';
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Failed to load bag.';
+        console.error('loadBagIntoUi error', e);
+    }
+}
+
+async function useBagItemOnActiveMonster({ itemId, monsterId }) {
+    const { statusEl } = ensureBagPlaceholders();
+
+    try {
+        if (statusEl) statusEl.textContent = 'Using item...';
+
+        const res = await axios.post(
+            '/bag/use',
+            { item_id: itemId, monster_id: monsterId },
+            { headers: { Accept: 'application/json' } },
+        );
+
+        const data = res.data || {};
+        const result = data.result || {};
+
+        // Status message
+        if (statusEl) statusEl.textContent = result.message || 'Done.';
+
+        // Update qty
+        const qtyEl = document.querySelector(`[data-bag-qty="${itemId}"]`);
+        if (qtyEl && data?.bag?.quantity != null) {
+            qtyEl.textContent = String(data.bag.quantity);
+        }
+
+        // Update player HP UI if backend returned monster HP
+        if (data?.monster?.current_hp != null && data?.monster?.max_hp != null) {
+            updatePlayerHpUi(data.monster.current_hp, data.monster.max_hp);
+        } else {
+            // If backend doesn’t return monster snapshot, at least refresh bag list so UI stays sane
+            // (Optional: you can also call fetchBattleState if you want a full UI refresh)
+        }
+
+        return true;
+    } catch (e) {
+        const msg =
+            e?.response?.data?.result?.message ||
+            e?.response?.data?.message ||
+            'Item use failed.';
+        if (statusEl) statusEl.textContent = msg;
+        console.error('useBagItemOnActiveMonster error', e);
+        return false;
+    }
+}
+
+function bindBagUiEvents(getActiveMonsterIdFn) {
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-use-item]');
+        if (!btn) return;
+
+        const itemId = Number(btn.getAttribute('data-use-item'));
+        if (!Number.isFinite(itemId) || itemId <= 0) return;
+
+        const monsterId = getActiveMonsterIdFn?.();
+        if (!monsterId) {
+            const { statusEl } = ensureBagPlaceholders();
+            if (statusEl) statusEl.textContent = 'No active monster selected.';
+            return;
+        }
+
+        useBagItemOnActiveMonster({ itemId, monsterId });
+    });
+}
+
+/* ========================================================= */
 
 export function initBattleLive(root = document) {
     const container = root.querySelector('[data-battle-live]');
@@ -526,6 +712,13 @@ export function initBattleLive(root = document) {
     let waitingForResolution = false;
     let lastHydrationRequest = 0;
     let hydrationRetryTimer = null;
+
+    // ---- Bag UI: compute active monster id dynamically (DOM -> state fallback)
+    const getActiveMonsterId = () => {
+        const fromDom = getActiveMonsterIdFromDom();
+        if (fromDom) return fromDom;
+        return getActiveMonsterIdFromState(battleState, viewerId);
+    };
 
     const updateHeader = () => {
         if (statusTextEl) {
@@ -710,23 +903,29 @@ export function initBattleLive(root = document) {
         }
         battleStatus = payload.status || payload.battle?.status || battleStatus;
         winnerId = payload.winner_user_id ?? payload.battle?.winner_user_id ?? winnerId;
+
         render();
-        
+
         const timerState = {
-  ...(payload.state || battleState),
-  // keep root fields like server_now / viewer_user_id if they exist on payload
-  server_now: (payload.server_now ?? (payload.state || battleState)?.server_now),
-  viewer_user_id: (payload.viewer_user_id ?? (payload.state || battleState)?.viewer_user_id),
-  user_id: (payload.user_id ?? (payload.state || battleState)?.user_id),
-  battle: {
-    ...((payload.state || battleState)?.battle || {}),
-    ...(payload.battle || {}),
-  },
-};
+            ...(payload.state || battleState),
 
-refreshPvpTimer(timerState);
-applyPvpTurnUi(timerState);
+            // MINIMAL CHANGE: ensure viewer_id is always present for applyPvpTurnUi / refreshPvpTimer fallbacks
+            viewer_id: viewerId,
 
+            // keep root fields like server_now / viewer_user_id if they exist on payload
+            server_now: (payload.server_now ?? (payload.state || battleState)?.server_now),
+            viewer_user_id: (payload.viewer_user_id ?? (payload.state || battleState)?.viewer_user_id),
+            user_id: (payload.user_id ?? (payload.state || battleState)?.user_id),
+            battle: {
+                ...((payload.state || battleState)?.battle || {}),
+                ...(payload.battle || {}),
+            },
+        };
+
+        refreshPvpTimer(timerState);
+
+        // MINIMAL CHANGE: pass explicit viewerId so overlay never disappears due to missing viewer id in payload state
+        applyPvpTurnUi(timerState, viewerId);
 
         const isActive = battleStatus === 'active';
         const isYourTurn = isActive && (battleState.next_actor_id ?? null) === viewerId;
@@ -848,9 +1047,18 @@ applyPvpTurnUi(timerState);
         submitAction(target);
     });
 
+    // ---- Bag UI init: bind once + load items
+    if (!window.__bagUiBound) {
+        window.__bagUiBound = true;
+        bindBagUiEvents(getActiveMonsterId);
+    }
+    loadBagIntoUi();
+
     render();
     refreshPvpTimer(battleState);
-    applyPvpTurnUi(battleState);
+
+    // MINIMAL CHANGE: pass explicit viewerId on initial call too
+    applyPvpTurnUi(battleState, viewerId);
 
     if (battleStatus !== 'active') {
         scheduleCompletion();

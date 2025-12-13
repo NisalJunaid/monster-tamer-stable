@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
             MoveSeeder::class,
             MonsterSpeciesSeeder::class,
             SpeciesLearnsetSeeder::class,
+            ItemSeeder::class,
+            BagSeeder::class,
         ]);
     }
 }

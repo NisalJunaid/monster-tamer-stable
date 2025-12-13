@@ -13,6 +13,8 @@ use App\Http\Controllers\Web\WildBattleController as WebWildBattleController;
 use App\Http\Controllers\Web\TeamController;
 use App\Http\Controllers\Web\PvpController as WebPvpController;
 use App\Http\Controllers\Web\StarterController;
+use App\Http\Controllers\BagController;
+
 use App\Models\Battle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -74,6 +76,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/battles/{battle}/state', [WebBattleController::class, 'state'])->name('battles.state');
         Route::post('/battles/{battle}', [WebBattleController::class, 'act'])->name('battles.act');
 
+
+        Route::get('/bag', [BagController::class, 'index']);
+        Route::post('/bag/use', [BagController::class, 'useItem']);
         /**
          * Debug routes (ONLY enabled when APP_DEBUG=true)
          * Replaces the previous closure-based middleware that breaks optimize:clear.

@@ -34,4 +34,11 @@ class PlayerMonster extends Model
     {
         return $this->belongsTo(MonsterSpecies::class, 'species_id');
     }
+
+    public function learnedMoves()
+{
+    return $this->hasMany(\App\Models\MonsterLearnedMove::class);
+}
+
+
 }
