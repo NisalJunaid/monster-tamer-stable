@@ -144,40 +144,45 @@ function setPvpInputLocked(locked) {
 const turnChangeSound = () => getAudio('pvp-turn-change-sound');
 
 function applyPvpTurnUi(state = {}) {
-    const root =
-        document.getElementById('battle-root') ||
-        document.getElementById('wild-battle-page') ||
-        document.querySelector('[data-mode="pvp"]');
+  // PvP page root (your blade uses #wild-battle-page)
+const root =
+  document.getElementById('wild-battle-page') ||
+  document.querySelector('[data-mode="pvp"]') ||
+  document.getElementById('battle-root');
+  
+  if (!root || root.dataset.mode !== 'pvp') {
+    lastNextActorUserId = null;
+    return;
+  }
 
-    if (!root || (root.dataset.mode || '') !== 'pvp') {
-        lastNextActorUserId = null;
-        return;
-    }
+  const viewerId =
+    state.viewer_user_id ??
+    state.viewer_id ??
+    state.user_id ??
+    window.__viewerUserId ??
+    null;
 
-    const viewerId =
-  state.viewer_user_id ??
-  state.user_id ??
-  window.__viewerUserId ??
-  null;
+  const nextActorId =
+    state.next_actor_id ??
+    state.battle?.next_actor_id ??
+    state.next_actor_user_id ??
+    state.battle?.next_actor_user_id ??
+    null;
 
-const nextActorId =
-  state.next_actor_id ??
-  state.battle?.next_actor_id ??
-  null;
+  if (!viewerId || !nextActorId) return;
 
-    if (!viewerId || !nextActorId) return;
+  if (lastNextActorUserId !== null && String(lastNextActorUserId) !== String(nextActorId)) {
+    playSound(turnChangeSound());
+  }
+  lastNextActorUserId = nextActorId;
 
-    if (lastNextActorUserId !== null && String(lastNextActorUserId) !== String(nextActorId)) {
-        playSound(turnChangeSound());
-    }
-    lastNextActorUserId = nextActorId;
+  const isYourTurn = String(nextActorId) === String(viewerId);
+  setPvpInputLocked(!isYourTurn);
 
-    const isYourTurn = String(nextActorId) === String(viewerId);
-    setPvpInputLocked(!isYourTurn);
-
-    const subtitle = document.querySelector('#pvp-wait-overlay .pvp-wait-overlay__subtitle');
-    if (subtitle) subtitle.textContent = isYourTurn ? 'Your turn' : 'Their turn';
+  const subtitle = document.querySelector('#pvp-wait-overlay .pvp-wait-overlay__subtitle');
+  if (subtitle) subtitle.textContent = isYourTurn ? 'Your turn' : 'Their turn';
 }
+
 
 export function wireBattleSounds(root) {
     if (!root) return;

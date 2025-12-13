@@ -104,15 +104,9 @@
         {!! json_encode(array_merge($payload, ['mode' => 'pvp'])) !!}
     </script>
 
-    <div id="pvp-wait-overlay" class="pvp-wait-overlay is-hidden" aria-live="polite" data-battle-waiting-overlay>
-      <div class="pvp-wait-overlay__card">
-        <div class="pvp-wait-overlay__spinner" aria-hidden="true"></div>
-        <div class="pvp-wait-overlay__title">Waiting for opponent…</div>
-        <div class="pvp-wait-overlay__subtitle">Their turn</div>
-      </div>
-    </div>
 
-    <div class="bg-white shadow rounded-xl p-5 flex items-center justify-between">
+
+    <!-- <div class="bg-white shadow rounded-xl p-5 flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-bold">PvP Battle</h1>
             <p class="text-gray-600">Battle #{{ $battle->id }} • Turn <span data-turn>{{ $battleState['turn'] ?? 1 }}</span></p>
@@ -121,7 +115,7 @@
         <button class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-500" data-back-button>
             Back to PvP lobby
         </button>
-    </div>
+    </div> -->
 
     <div class="grid md:grid-cols-2 gap-4">
         <div class="bg-slate-900 text-white rounded-xl p-5 shadow-inner" data-panel-player>
@@ -195,7 +189,15 @@
       </div>
     </div>
 
-    <div class="bg-white shadow rounded-xl p-5 space-y-4" data-action-menu>
+    <div class="bg-white shadow rounded-xl p-5 space-y-4 relative" data-action-menu id="pvp-actions-root">
+    <div id="pvp-wait-overlay" class="pvp-wait-overlay is-hidden" aria-live="polite">
+        <div class="pvp-wait-overlay__card">
+            <div class="pvp-wait-overlay__spinner" aria-hidden="true"></div>
+            <div class="pvp-wait-overlay__title">Waiting for opponent…</div>
+            <div class="pvp-wait-overlay__subtitle">Their turn</div>
+        </div>
+    </div>
+
         <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold">Actions</h3>
             <span class="text-sm text-gray-600" data-turn-indicator>{{ ($battleState['active'] ?? false) ? 'Choose your move' : 'Battle resolved' }}</span>
@@ -241,7 +243,7 @@
         <p class="text-sm text-gray-500" data-action-status></p>
     </div>
 
-    <div class="bg-white shadow rounded-xl p-5" data-battle-log>
+    <!-- <div class="bg-white shadow rounded-xl p-5" data-battle-log>
         <h3 class="text-lg font-semibold mb-3">Battle Log</h3>
         <div class="space-y-2" data-log-entries>
             @forelse(array_reverse($battleState['last_action_log'] ?? []) as $entry)
@@ -253,7 +255,7 @@
                 <p class="text-gray-600">No actions yet.</p>
             @endforelse
         </div>
-    </div>
+    </div> -->
 
     <audio
         id="battle-click-main"

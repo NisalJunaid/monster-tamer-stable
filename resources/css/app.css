@@ -31,8 +31,15 @@
 
 /* Hidden state (your JS toggles .is-hidden) */
 .pvp-wait-overlay.is-hidden {
-  display: none;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
 }
+
+.pvp-wait-overlay {
+    visibility: visible;
+}
+
 
 /* Card styling (optional, but makes it look right) */
 .pvp-wait-overlay__card {
